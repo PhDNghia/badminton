@@ -52,6 +52,9 @@ export default function BookingsManager() {
   const [dragStartHour, setDragStartHour] = useState(null);
   const [dragEndHour, setDragEndHour] = useState(null);
 
+  const currentUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
+  const isAdmin = currentUser.role === "admin";
+
   // Khung giờ từ 0:00 đến 23:00
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -337,7 +340,7 @@ export default function BookingsManager() {
       default:
         return (
           <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-            Chờ cọc
+            Chờ xác nhận
           </span>
         );
     }
@@ -393,7 +396,7 @@ export default function BookingsManager() {
 
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-          <span>📅 Quản Lý Lịch Đặt Sân Trực Quan</span>
+          <span>Quản Lý Lịch Đặt Sân</span>
         </h1>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
@@ -587,12 +590,6 @@ export default function BookingsManager() {
                 style={{ colorScheme: "dark" }}
               />
             </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg font-medium">
-            <MousePointerClick size={15} />
-            Mẹo: Nhấp giữ & kéo chuột trên lưới để chọn nhanh khoảng giờ và mở
-            form!
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-300 font-medium">
@@ -812,23 +809,25 @@ export default function BookingsManager() {
                               className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
                               title="Check-in cho khách"
                             >
-                              <CheckSquare size={14} /> Check-in
+                              <CheckSquare size={14} /> Nhận sân
                             </button>
                           )}
 
-                          <button
-                            onClick={() =>
-                              confirmActionModal(
-                                "Xóa lịch đặt",
-                                "Bạn có chắc chắn muốn xóa lịch này khỏi hệ thống không?",
-                                `/bookings/${item._id}`,
-                              )
-                            }
-                            className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
-                            title="Xóa lịch"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() =>
+                                confirmActionModal(
+                                  "Xóa lịch đặt",
+                                  "Bạn có chắc chắn muốn xóa lịch này khỏi hệ thống không?",
+                                  `/bookings/${item._id}`,
+                                )
+                              }
+                              className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
+                              title="Xóa lịch"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

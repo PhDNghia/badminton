@@ -24,7 +24,6 @@ export default function CheckoutModal({
   const ACCOUNT_NO = "0912345678";
   const ACCOUNT_NAME = "NGUYEN VAN A";
 
-  // Nội dung chuyển khoản: Sân + Giờ đặt lịch gốc hoặc giờ thực tế để dễ check lại
   const addInfoText = `Thanh toan ${courtName} ${booking.startTime}-${booking.endTime}`;
   const encodedAddInfo = addInfoText.replace(/ /g, "%20");
   const encodedAccountName = ACCOUNT_NAME.replace(/ /g, "%20");
@@ -132,14 +131,13 @@ export default function CheckoutModal({
             </div>
           </div>
 
-          {/* CỘT PHẢI: Mã QR & Nút lựa chọn thanh toán truyền method ra ngoài */}
+          {/* CỘT PHẢI: Mã QR & Nút lựa chọn thanh toán */}
           <div className="bg-slate-800/40 border border-slate-800 p-4 rounded-xl flex flex-col items-center justify-between">
             <div className="w-full flex flex-col items-center justify-center flex-1">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
                 <QrCode size={15} /> Quét mã QR chuyển khoản
               </h4>
 
-              {/* Ảnh QR */}
               <div className="bg-white p-2.5 rounded-2xl shadow-xl border border-slate-700 mb-3">
                 <img
                   src={qrUrl}
@@ -152,9 +150,9 @@ export default function CheckoutModal({
               </p>
             </div>
 
-            {/* Các nút hành động thanh toán */}
+            {/* Các nút hành động thanh toán (Chỉ còn Tiền mặt và Chuyển khoản) */}
             <div className="w-full space-y-2 mt-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => onConfirm("cash")}
                   className="py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold transition-all text-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-md"

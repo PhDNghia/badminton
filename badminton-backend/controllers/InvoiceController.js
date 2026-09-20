@@ -3,7 +3,7 @@ import InvoiceModel from "../models/InvoiceModel.js";
 import BookingModel from "../models/BookingModel.js";
 import ProductModel from "../models/ProductModel.js";
 
-// Thêm vào InvoiceController.js
+// Lấy tất cả hóa đơn
 export const getAllInvoices = async (req, res) => {
   try {
     const invoices = await InvoiceModel.find()
@@ -39,7 +39,6 @@ export const getOrCreateInvoice = async (req, res) => {
           .status(404)
           .json({ success: false, message: "Không tìm thấy lịch đặt!" });
 
-      // Tính tiền sân sơ bộ (hoặc truyền lên từ client)
       const courtFee = booking.totalPrice || 100000;
       const deposit = booking.depositAmount || 0;
 
@@ -68,11 +67,11 @@ export const getOrCreateInvoice = async (req, res) => {
   }
 };
 
-// Cập nhật hóa đơn (Thêm sản phẩm nước, cầu... hoặc thanh toán hoàn tất)
+// Cập nhật hóa đơn (Thêm sản phẩm nước, cầu... hoặc thanh toán hoàn tất) - ĐÃ BỔ SUNG THU NGÂN
 export const updateInvoicePOS = async (req, res) => {
   try {
     const { invoiceId } = req.params;
-    const { items, paymentStatus, paymentMethod } = req.body; // items là mảng sản phẩm thêm mới
+    const { items, paymentStatus, paymentMethod, cashierName } = req.body; // Thêm cashierName nhận từ client
 
     let invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice)
@@ -103,6 +102,11 @@ export const updateInvoicePOS = async (req, res) => {
     if (paymentStatus) invoice.paymentStatus = paymentStatus;
     if (paymentMethod) invoice.paymentMethod = paymentMethod;
 
+    // Cập nhật tên thu ngân thực hiện giao dịch (nếu có gửi lên)
+    if (cashierName) {
+      invoice.cashierName = cashierName;
+    }
+
     // Tổng tiền cuối cùng = Tiền sân + Tiền hàng phát sinh
     invoice.totalAmount = invoice.courtFee + invoice.productsTotal;
     // Số tiền còn lại cần thanh toán = Tổng tiền - Cọc đã trả
@@ -126,6 +130,37 @@ export const updateInvoicePOS = async (req, res) => {
       success: true,
       message: "Cập nhật bill thành công!",
       data: invoice,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Xóa hóa đơn (Chỉ Admin mới được phép)
+export const deleteInvoice = async (req, res) => {
+  try {
+    const { invoiceId } = req.params;
+
+    // Kiểm tra role (đảm bảo middleware xác thực đã gán req.user)
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Bạn không có quyền thực hiện hành động này! Chỉ Admin mới được xóa lịch sử.",
+      });
+    }
+
+    const deletedInvoice = await InvoiceModel.findByIdAndDelete(invoiceId);
+    if (!deletedInvoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy hóa đơn cần xóa!",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Xóa lịch sử thanh toán thành công!",
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

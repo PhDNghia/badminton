@@ -13,36 +13,48 @@ const invoiceSchema = new mongoose.Schema(
       ref: "Court",
       required: true,
     },
-    customerName: { type: String, required: true },
-    phone: { type: String, required: true },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    customerName: { type: String, default: "Khách lẻ" },
+    phone: { type: String, default: "" },
 
-    // Tiền sân
-    courtFee: { type: Number, required: true }, // Tính dựa trên giờ đặt/giờ chơi
-    depositPaid: { type: Number, default: 0 }, // Tiền cọc đã trả trước (nếu có)
+    // Tên thu ngân thực hiện ca thanh toán
+    cashierName: { type: String, default: "Thu ngân ca trực" },
 
-    // Danh sách sản phẩm mua thêm tại quầy (Nước, cầu,...)
+    // Tiền sân và chi phí
+    courtFee: { type: Number, default: 0 },
+    depositPaid: { type: Number, default: 0 },
+
+    // Danh sách dịch vụ/sản phẩm mua thêm tại quầy
     items: [
       {
         product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-        name: { type: String, required: true },
-        price: { type: Number, required: true },
-        quantity: { type: Number, required: true },
+        name: { type: String },
+        price: { type: Number, default: 0 },
+        quantity: { type: Number, default: 1 },
       },
     ],
 
-    productsTotal: { type: Number, default: 0 }, // Tổng tiền nước, cầu...
-    totalAmount: { type: Number, required: true }, // Tổng bill = courtFee + productsTotal
-    remainingAmount: { type: Number, required: true }, // Số tiền còn lại phải thu = totalAmount - depositPaid
+    productsTotal: { type: Number, default: 0 },
+    totalAmount: { type: Number, default: 0 },
+    remainingAmount: { type: Number, default: 0 },
 
     paymentStatus: {
       type: String,
-      enum: ["pending_deposit", "paid_deposit", "paid_full", "cancelled"],
-      default: "pending_deposit",
+      enum: [
+        "pending_deposit",
+        "paid_deposit",
+        "paid_full",
+        "cancelled",
+        "pending",
+      ],
+      default: "pending",
     },
     paymentMethod: {
       type: String,
-      enum: ["cash", "transfer"],
-      default: "transfer",
+      default: "cash",
     },
   },
   { timestamps: true },

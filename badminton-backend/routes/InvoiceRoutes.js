@@ -1,6 +1,7 @@
 // badminton-backend/routes/InvoiceRoutes.js
 import express from "express";
 import {
+  deleteInvoice,
   getAllInvoices,
   getOrCreateInvoice,
   updateInvoicePOS,
@@ -27,6 +28,13 @@ invoiceRouter.put(
   verifyToken,
   verifyAdminOrStaff,
   updateInvoicePOS,
+);
+
+invoiceRouter.delete(
+  "/:invoiceId",
+  verifyToken,
+  verifyAdminOrStaff,
+  deleteInvoice,
 );
 
 export default invoiceRouter;

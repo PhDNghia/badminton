@@ -11,12 +11,10 @@ export const register = async (req, res) => {
     // Kiểm tra số điện thoại đã tồn tại chưa
     const existingUser = await UserModel.findOne({ phone });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Số điện thoại này đã được đăng ký!",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại này đã được đăng ký!",
+      });
     }
 
     // Mã hóa mật khẩu (hashing)
@@ -44,26 +42,36 @@ export const login = async (req, res) => {
   try {
     const { phone, password } = req.body;
 
-    // Tìm user theo số điện thoại
+    // 1. Tìm user theo số điện thoại
     const user = await UserModel.findOne({ phone });
     if (!user) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Tài khoản không tồn tại!" });
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại hoặc mật khẩu không chính xác!",
+      });
     }
 
-    // So sánh mật khẩu
+    // 2. Kiểm tra mật khẩu (dùng bcrypt.compare)
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Mật khẩu không chính xác!" });
+      return res.status(400).json({
+        success: false,
+        message: "Số điện thoại hoặc mật khẩu không chính xác!",
+      });
     }
 
-    // Tạo JWT Token (Hạn dùng VD: 1 ngày)
+    // 3. ✨ RÀNG BUỘC MỚI: Chỉ cho phép admin hoặc staff đăng nhập vào trang quản trị
+    if (user.role !== "admin" && user.role !== "staff") {
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền truy cập vào trang quản trị!",
+      });
+    }
+
+    // 4. Tạo token (nếu vượt qua các bước trên)
     const token = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET || "badminton_secret_key",
+      process.env.JWT_SECRET,
       { expiresIn: "1d" },
     );
 

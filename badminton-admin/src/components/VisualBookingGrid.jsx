@@ -64,6 +64,8 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
   // Màu sắc tương ứng với trạng thái ô lịch
   const getSlotColor = (status) => {
     switch (status) {
+      case "pending":
+      case "Pending":
       case "pending_deposit":
       case "Pending_Deposit":
         return "bg-amber-400 hover:bg-amber-500 text-white"; // Đang chờ cọc (Vàng)
@@ -108,11 +110,12 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
             Trống
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-amber-400"></span> Chờ cọc
+            <span className="w-3 h-3 rounded-full bg-amber-400"></span> Chờ xác
+            nhận
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-blue-500"></span> Đã
-            cọc/Xác nhận
+            <span className="w-3 h-3 rounded-full bg-blue-500"></span> Đã xác
+            nhận
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-emerald-500"></span> Đang

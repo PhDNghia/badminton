@@ -57,7 +57,11 @@ export default function LoginView() {
         localStorage.setItem("adminUser", JSON.stringify(res.data.user));
 
         toast.success("Đăng nhập thành công!");
-        navigate("/");
+        if (res.data.user.role === "admin") {
+          navigate("/"); // Admin vào trang Thống kê số liệu
+        } else if (res.data.user.role === "staff") {
+          navigate("/bookings");
+        }
       }
     } catch (error) {
       toast.error(

@@ -6,12 +6,16 @@ import {
   updateCourt,
   deleteCourt,
 } from "../controllers/CourtController.js";
+import {
+  verifyAdminOrStaff,
+  verifyToken,
+} from "../middlewares/AuthMiddlerware.js";
 
 const courtRouter = express.Router();
 
-courtRouter.get("/", getCourts);
-courtRouter.post("/", createCourt);
-courtRouter.put("/:id", updateCourt);
-courtRouter.delete("/:id", deleteCourt);
+courtRouter.get("/", verifyToken, verifyAdminOrStaff, getCourts);
+courtRouter.post("/", verifyToken, verifyAdminOrStaff, createCourt);
+courtRouter.put("/:id", verifyToken, verifyAdminOrStaff, updateCourt);
+courtRouter.delete("/:id", verifyToken, verifyAdminOrStaff, deleteCourt);
 
 export default courtRouter;

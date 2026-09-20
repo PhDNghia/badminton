@@ -48,6 +48,8 @@ export default function AdminLayout() {
     role: "Admin",
   };
 
+  const isAdmin = adminUser.role?.toLowerCase() === "admin";
+
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "dark") {
@@ -140,12 +142,24 @@ export default function AdminLayout() {
             <div className="px-3 mb-1.5 text-xs font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
               Tổng Quan
             </div>
+
+            {/* Thống Kê Số Liệu - Chỉ Admin mới coi được, Staff bị disable */}
             <Link
-              to="/"
+              to={isAdmin ? "/" : "#"}
+              onClick={(e) => {
+                if (!isAdmin) {
+                  e.preventDefault();
+                  toast.info(
+                    "Chỉ tài khoản Admin mới có quyền truy cập Thống Kê Số Liệu!",
+                  );
+                }
+              }}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition text-sm ${
                 location.pathname === "/"
                   ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                  : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                  : isAdmin
+                    ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    : "text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed hover:bg-transparent"
               }`}
             >
               <LayoutDashboard size={19} />
@@ -158,36 +172,69 @@ export default function AdminLayout() {
               Quản Lý Chung
             </div>
             <div className="space-y-1">
+              {/* Quản Lý Sân - Chỉ Admin */}
               <Link
-                to="/courts"
+                to={isAdmin ? "/courts" : "#"}
+                onClick={(e) => {
+                  if (!isAdmin) {
+                    e.preventDefault();
+                    toast.info(
+                      "Chỉ tài khoản Admin mới có quyền truy cập Quản Lý Sân!",
+                    );
+                  }
+                }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition text-sm ${
                   location.pathname === "/courts"
                     ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                    : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    : isAdmin
+                      ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      : "text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed hover:bg-transparent"
                 }`}
               >
                 <Grid size={19} />
                 <span>Quản Lý Sân</span>
               </Link>
 
+              {/* Quản Lý Người Dùng - Chỉ Admin */}
               <Link
-                to="/users"
+                to={isAdmin ? "/users" : "#"}
+                onClick={(e) => {
+                  if (!isAdmin) {
+                    e.preventDefault();
+                    toast.info(
+                      "Chỉ tài khoản Admin mới có quyền truy cập Quản Lý Người Dùng!",
+                    );
+                  }
+                }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition text-sm ${
                   location.pathname === "/users"
                     ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                    : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    : isAdmin
+                      ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      : "text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed hover:bg-transparent"
                 }`}
               >
                 <Users size={19} />
                 <span>Quản Lý Người Dùng</span>
               </Link>
 
+              {/* Quản Lý Sản Phẩm - Chỉ Admin */}
               <Link
-                to="/products"
+                to={isAdmin ? "/products" : "#"}
+                onClick={(e) => {
+                  if (!isAdmin) {
+                    e.preventDefault();
+                    toast.info(
+                      "Chỉ tài khoản Admin mới có quyền truy cập Quản Lý Sản Phẩm!",
+                    );
+                  }
+                }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition text-sm ${
                   location.pathname === "/products"
                     ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
-                    : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    : isAdmin
+                      ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      : "text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed hover:bg-transparent"
                 }`}
               >
                 <ShoppingBasket size={19} />
@@ -325,7 +372,8 @@ export default function AdminLayout() {
                   {adminUser.name}
                 </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
-                  <ShieldCheck size={13} /> {adminUser.role || "Admin"}
+                  <ShieldCheck size={13} />{" "}
+                  {adminUser.role === "Admin" ? "Quản trị viên" : "Nhân viên"}
                 </p>
               </div>
             </div>

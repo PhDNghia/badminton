@@ -14,14 +14,19 @@ import {
 
 const bookingRouter = express.Router();
 
-bookingRouter.post("/", verifyToken, createBooking); // Khách đặt lịch
+bookingRouter.post("/", createBooking); // Khách đặt lịch
 bookingRouter.put(
   "/:bookingId/confirm-deposit",
   verifyToken,
   verifyAdminOrStaff,
   confirmDeposit,
 ); // Nhân viên xác nhận cọc
-bookingRouter.put("/:bookingId/check-in", checkInBooking); // Nhân viên check-in sân
+bookingRouter.put(
+  "/:bookingId/check-in",
+  verifyToken,
+  verifyAdminOrStaff,
+  checkInBooking,
+); // Nhân viên check-in sân
 bookingRouter.get("/", verifyToken, verifyAdminOrStaff, getAllBookings); // Lấy danh sách cho admin/staff
 bookingRouter.delete(
   "/:bookingId",

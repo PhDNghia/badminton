@@ -16,6 +16,7 @@ import {
   X,
   Eye,
   Info,
+  Trash2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -42,6 +43,9 @@ export default function PaymentHistory() {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const currentUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
+  const isAdmin = currentUser.role === "admin";
+
   const fetchPaymentHistory = async () => {
     setLoading(true);
     try {
@@ -62,12 +66,11 @@ export default function PaymentHistory() {
   }, []);
 
   const formatPaymentMethod = (method) => {
-    if (!method || method === "cash" || method === "Tiền mặt")
-      return "Tiền mặt";
-    if (method === "transfer" || method === "Chuyển khoản")
+    if (!method) return "Tiền mặt";
+    const lower = method.toLowerCase();
+    if (lower.includes("cash") || lower.includes("tiền mặt")) return "Tiền mặt";
+    if (lower.includes("transfer") || lower.includes("chuyển khoản"))
       return "Chuyển khoản";
-    if (method === "momo" || method === "Momo") return "Momo";
-    if (method === "zalopay" || method === "ZaloPay") return "ZaloPay";
     return method;
   };
 
@@ -75,19 +78,19 @@ export default function PaymentHistory() {
     const status = item.paymentStatus;
     if (status === "paid_full") {
       return (
-        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 flex items-center gap-1 w-fit">
+        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 flex items-center gap-1 w-fit mx-auto">
           <CheckCircle2 size={12} /> Đã thanh toán
         </span>
       );
     } else if (status === "paid_deposit") {
       return (
-        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 flex items-center gap-1 w-fit">
+        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 flex items-center gap-1 w-fit mx-auto">
           <CheckCircle2 size={12} /> Đã cọc
         </span>
       );
     } else {
       return (
-        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 flex items-center gap-1 w-fit">
+        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 flex items-center gap-1 w-fit mx-auto">
           <Clock3 size={12} /> Chờ thanh toán
         </span>
       );
@@ -195,6 +198,28 @@ export default function PaymentHistory() {
     setIsModalOpen(true);
   };
 
+  const handleDeleteInvoice = async (e, invoiceId) => {
+    e.stopPropagation();
+
+    if (
+      !window.confirm("Bạn có chắc chắn muốn xóa lịch sử thanh toán này không?")
+    ) {
+      return;
+    }
+
+    try {
+      const res = await API.delete(`/invoices/${invoiceId}`);
+      if (res.data.success) {
+        toast.success("Xóa hóa đơn thành công!");
+        setPayments(payments.filter((item) => item._id !== invoiceId));
+      }
+    } catch (error) {
+      console.error("Lỗi xóa hóa đơn:", error);
+      const message = error.response?.data?.message || "Không thể xóa hóa đơn!";
+      toast.error(message);
+    }
+  };
+
   return (
     <div className="pb-12 relative">
       <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
@@ -241,12 +266,6 @@ export default function PaymentHistory() {
                 className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
               >
                 Chuyển khoản
-              </option>
-              <option
-                value="Momo"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Momo
               </option>
             </select>
           </div>
@@ -479,14 +498,13 @@ export default function PaymentHistory() {
                 {filteredPayments.map((item) => {
                   const customerName = item.customerName || "Khách lẻ";
                   const customerPhone = item.phone || "Không có SĐT";
-                  const payMethod = formatPaymentMethod(item.paymentMethod);
+                  const payMethodText = formatPaymentMethod(item.paymentMethod);
                   const bookingInfo = item.booking || {};
 
                   return (
                     <tr
                       key={item._id}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer"
-                      onClick={() => handleOpenDetail(item)}
                     >
                       <td className="p-3 font-semibold">
                         <div className="flex items-center gap-2">
@@ -523,9 +541,29 @@ export default function PaymentHistory() {
                         </div>
                       </td>
                       <td className="p-3">
-                        <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          {payMethod}
-                        </span>
+                        <div className="space-y-1.5 py-1">
+                          <div>
+                            <span
+                              className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-lg shadow-sm ${
+                                formatPaymentMethod(item.paymentMethod) ===
+                                "Tiền mặt"
+                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                  : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                              }`}
+                            >
+                              {formatPaymentMethod(item.paymentMethod)}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                            <span>Thu ngân:</span>
+                            <span className="text-slate-700 dark:text-slate-200 font-medium">
+                              {item.cashierName &&
+                              !item.cashierName.includes("currentCashierName")
+                                ? item.cashierName
+                                : "Thu ngân ca trực"}
+                            </span>
+                          </div>
+                        </div>
                       </td>
                       <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400 text-base">
                         {(item.totalAmount || 0).toLocaleString()} đ
@@ -537,16 +575,28 @@ export default function PaymentHistory() {
                         {renderPaymentStatus(item)}
                       </td>
                       <td className="p-3 text-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDetail(item);
-                          }}
-                          className="p-2 hover:bg-emerald-50 dark:hover:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-xl transition inline-flex items-center gap-1 text-xs font-medium"
-                          title="Xem chi tiết hóa đơn"
-                        >
-                          <Eye size={16} /> Chi tiết
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDetail(item);
+                            }}
+                            className="p-2 hover:bg-emerald-50 dark:hover:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-xl transition inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
+                            title="Xem chi tiết"
+                          >
+                            <Eye size={16} />
+                          </button>
+
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => handleDeleteInvoice(e, item._id)}
+                              className="p-2 hover:bg-rose-50 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400 rounded-xl transition inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
+                              title="Xóa hóa đơn"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -579,7 +629,6 @@ export default function PaymentHistory() {
 
             {/* Body Modal */}
             <div className="p-6 space-y-5 text-sm max-h-[75vh] overflow-y-auto">
-              {/* Thông tin khách & sân */}
               <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-2 border border-slate-100 dark:border-slate-800">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Khách hàng:</span>
@@ -612,14 +661,12 @@ export default function PaymentHistory() {
                 </div>
               </div>
 
-              {/* DANH SÁCH DỊCH VỤ / SẢN PHẨM MUA KÈM (LẤY TỪ TRƯỜNG ITEMS CỦA HÓA ĐƠN) */}
               <div className="space-y-3">
                 <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs uppercase tracking-wider">
                   <Info size={14} className="text-emerald-500" /> Chi tiết tiền
                   sân & sản phẩm phát sinh:
                 </h4>
                 <div className="border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
-                  {/* Tiền sân chính */}
                   <div className="flex justify-between p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs">
                     <span className="text-slate-600 dark:text-slate-300">
                       Tiền sân ({selectedInvoice.court?.name || "Sân"})
@@ -634,7 +681,6 @@ export default function PaymentHistory() {
                     </span>
                   </div>
 
-                  {/* Danh sách các sản phẩm/dịch vụ mua thêm (items từ Checkout/Billing) */}
                   {selectedInvoice.items && selectedInvoice.items.length > 0 ? (
                     selectedInvoice.items.map((item, idx) => (
                       <div
@@ -661,7 +707,6 @@ export default function PaymentHistory() {
                     </div>
                   )}
 
-                  {/* Giảm giá nếu có */}
                   {selectedInvoice.discount > 0 && (
                     <div className="flex justify-between p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs">
                       <span className="text-slate-600 dark:text-slate-300">
@@ -675,7 +720,6 @@ export default function PaymentHistory() {
                 </div>
               </div>
 
-              {/* Tổng kết thanh toán */}
               <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 p-4 rounded-xl space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-emerald-800 dark:text-emerald-300 font-medium">
