@@ -17,6 +17,7 @@ import {
   Eye,
   Info,
   Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -42,6 +43,11 @@ export default function PaymentHistory() {
   // State cho Modal xem chi tiết hóa đơn
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // State cho Modal xác nhận xóa hóa đơn
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const currentUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
   const isAdmin = currentUser.role === "admin";
@@ -76,16 +82,23 @@ export default function PaymentHistory() {
 
   const renderPaymentStatus = (item) => {
     const status = item.paymentStatus;
-    if (status === "paid_full") {
+
+    if (status === "forfeited_deposit" || status === "deposit_retained") {
+      return (
+        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 flex items-center gap-1 w-fit mx-auto">
+          <CheckCircle2 size={12} /> Thu cọc do hủy sân
+        </span>
+      );
+    } else if (status === "refunded") {
+      return (
+        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1 w-fit mx-auto">
+          <CheckCircle2 size={12} /> Đã hoàn cọc
+        </span>
+      );
+    } else if (status === "paid_full" || status === "paid") {
       return (
         <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 flex items-center gap-1 w-fit mx-auto">
           <CheckCircle2 size={12} /> Đã thanh toán
-        </span>
-      );
-    } else if (status === "paid_deposit") {
-      return (
-        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 flex items-center gap-1 w-fit mx-auto">
-          <CheckCircle2 size={12} /> Đã cọc
         </span>
       );
     } else {
@@ -198,25 +211,34 @@ export default function PaymentHistory() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteInvoice = async (e, invoiceId) => {
+  // Mở modal xác nhận xóa
+  const handleOpenDeleteModal = (e, invoice) => {
     e.stopPropagation();
+    setInvoiceToDelete(invoice);
+    setIsDeleteModalOpen(true);
+  };
 
-    if (
-      !window.confirm("Bạn có chắc chắn muốn xóa lịch sử thanh toán này không?")
-    ) {
-      return;
-    }
+  // Thực hiện gọi API xóa khi người dùng bấm xác nhận trong Modal
+  const handleConfirmDelete = async () => {
+    if (!invoiceToDelete) return;
 
+    setIsDeleting(true);
     try {
-      const res = await API.delete(`/invoices/${invoiceId}`);
+      const res = await API.delete(`/invoices/${invoiceToDelete._id}`);
       if (res.data.success) {
         toast.success("Xóa hóa đơn thành công!");
-        setPayments(payments.filter((item) => item._id !== invoiceId));
+        setPayments(
+          payments.filter((item) => item._id !== invoiceToDelete._id),
+        );
+        setIsDeleteModalOpen(false);
+        setInvoiceToDelete(null);
       }
     } catch (error) {
       console.error("Lỗi xóa hóa đơn:", error);
       const message = error.response?.data?.message || "Không thể xóa hóa đơn!";
       toast.error(message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -249,24 +271,9 @@ export default function PaymentHistory() {
               onChange={(e) => setPaymentMethodFilter(e.target.value)}
               className="bg-slate-50 dark:bg-slate-800 outline-none text-sm text-slate-800 dark:text-white w-full cursor-pointer"
             >
-              <option
-                value="all"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Tất cả phương thức thanh toán
-              </option>
-              <option
-                value="Tiền mặt"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Tiền mặt
-              </option>
-              <option
-                value="Chuyển khoản"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Chuyển khoản
-              </option>
+              <option value="all">Tất cả phương thức thanh toán</option>
+              <option value="Tiền mặt">Tiền mặt</option>
+              <option value="Chuyển khoản">Chuyển khoản</option>
             </select>
           </div>
 
@@ -277,48 +284,13 @@ export default function PaymentHistory() {
               onChange={(e) => setTimeFilterType(e.target.value)}
               className="bg-slate-50 dark:bg-slate-800 outline-none text-sm text-slate-800 dark:text-white w-full cursor-pointer"
             >
-              <option
-                value="all"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Tất cả thời gian
-              </option>
-              <option
-                value="day"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Thống kê theo Ngày
-              </option>
-              <option
-                value="week"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Thống kê theo Tuần
-              </option>
-              <option
-                value="month"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Thống kê theo Tháng
-              </option>
-              <option
-                value="quarter"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Thống kê theo Quý
-              </option>
-              <option
-                value="year"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Thống kê theo Năm
-              </option>
-              <option
-                value="custom"
-                className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-              >
-                Tùy chọn Từ ngày - Đến ngày
-              </option>
+              <option value="all">Tất cả thời gian</option>
+              <option value="day">Thống kê theo Ngày</option>
+              <option value="week">Thống kê theo Tuần</option>
+              <option value="month">Thống kê theo Tháng</option>
+              <option value="quarter">Thống kê theo Quý</option>
+              <option value="year">Thống kê theo Năm</option>
+              <option value="custom">Tùy chọn Từ ngày - Đến ngày</option>
             </select>
           </div>
         </div>
@@ -366,24 +338,9 @@ export default function PaymentHistory() {
                 onChange={(e) => setSelectedYear(e.target.value)}
                 className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl text-sm text-slate-800 dark:text-white outline-none cursor-pointer"
               >
-                <option
-                  value="2025"
-                  className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-                >
-                  2025
-                </option>
-                <option
-                  value="2026"
-                  className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-                >
-                  2026
-                </option>
-                <option
-                  value="2027"
-                  className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-                >
-                  2027
-                </option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+                <option value="2027">2027</option>
               </select>
             </div>
           )}
@@ -487,9 +444,10 @@ export default function PaymentHistory() {
                   <th className="p-3">Khách hàng</th>
                   <th className="p-3">Sân cầu lông</th>
                   <th className="p-3">Thời gian chơi</th>
-                  <th className="p-3">Phương thức thanh toán</th>
+                  <th className="p-3">Phương thức</th>
                   <th className="p-3">Tổng tiền sân</th>
-                  <th className="p-3">Tiền cọc</th>
+                  <th className="p-3">Đã cọc</th>
+                  <th className="p-3">Thực nhận / Còn lại</th>
                   <th className="p-3 text-center">Trạng thái</th>
                   <th className="p-3 text-center">Hành động</th>
                 </tr>
@@ -498,8 +456,17 @@ export default function PaymentHistory() {
                 {filteredPayments.map((item) => {
                   const customerName = item.customerName || "Khách lẻ";
                   const customerPhone = item.phone || "Không có SĐT";
-                  const payMethodText = formatPaymentMethod(item.paymentMethod);
                   const bookingInfo = item.booking || {};
+
+                  const totalAmount = item.totalAmount || 0;
+                  const depositPaid = item.depositPaid || 0;
+
+                  const isForfeited =
+                    item.paymentStatus === "forfeited_deposit" ||
+                    item.paymentStatus === "deposit_retained";
+                  const remainingPay = isForfeited
+                    ? depositPaid
+                    : totalAmount - depositPaid;
 
                   return (
                     <tr
@@ -565,12 +532,25 @@ export default function PaymentHistory() {
                           </div>
                         </div>
                       </td>
-                      <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400 text-base">
-                        {(item.totalAmount || 0).toLocaleString()} đ
+
+                      {/* Cột Tổng tiền sân */}
+                      <td className="p-3 font-bold text-slate-800 dark:text-white">
+                        {totalAmount.toLocaleString()} đ
                       </td>
+
+                      {/* Cột Tiền cọc */}
                       <td className="p-3 text-xs font-semibold text-amber-600">
-                        {(item.depositPaid || 0).toLocaleString()} đ
+                        {depositPaid.toLocaleString()} đ
                       </td>
+
+                      {/* Cột Thực nhận / Còn lại */}
+                      <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">
+                        {remainingPay.toLocaleString()} đ
+                        <div className="text-[10px] font-normal text-slate-400">
+                          {isForfeited ? "(Thu cọc hủy sân)" : "(Thu tại quầy)"}
+                        </div>
+                      </td>
+
                       <td className="p-3 text-center">
                         {renderPaymentStatus(item)}
                       </td>
@@ -589,7 +569,7 @@ export default function PaymentHistory() {
 
                           {isAdmin && (
                             <button
-                              onClick={(e) => handleDeleteInvoice(e, item._id)}
+                              onClick={(e) => handleOpenDeleteModal(e, item)}
                               className="p-2 hover:bg-rose-50 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400 rounded-xl transition inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
                               title="Xóa hóa đơn"
                             >
@@ -621,7 +601,7 @@ export default function PaymentHistory() {
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl transition"
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl transition cursor-pointer"
               >
                 <X size={20} />
               </button>
@@ -629,6 +609,17 @@ export default function PaymentHistory() {
 
             {/* Body Modal */}
             <div className="p-6 space-y-5 text-sm max-h-[75vh] overflow-y-auto">
+              {(selectedInvoice.paymentStatus === "forfeited_deposit" ||
+                selectedInvoice.paymentStatus === "deposit_retained") && (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-700 dark:text-rose-300 font-medium flex items-center gap-2">
+                  <Info size={18} className="shrink-0" />
+                  <span>
+                    Hóa đơn ghi nhận tịch thu tiền cọc do khách bùng sân / hủy
+                    lịch muộn.
+                  </span>
+                </div>
+              )}
+
               <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-2 border border-slate-100 dark:border-slate-800">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Khách hàng:</span>
@@ -758,9 +749,72 @@ export default function PaymentHistory() {
             <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl text-sm font-medium transition"
+                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl text-sm font-medium transition cursor-pointer"
               >
                 Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XÁC NHẬN XÓA HÓA ĐƠN */}
+      {isDeleteModalOpen && invoiceToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            {/* Header Modal Xóa */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="text-rose-600" size={24} />
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+                  Xác Nhận Xóa Hóa Đơn
+                </h3>
+              </div>
+              <button
+                onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl transition cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Body Modal Xóa */}
+            <div className="p-6 space-y-4 text-sm">
+              <p className="text-slate-600 dark:text-slate-300">
+                Bạn có chắc chắn muốn xóa lịch sử thanh toán của khách hàng{" "}
+                <strong className="text-slate-800 dark:text-white">
+                  {invoiceToDelete.customerName || "Khách lẻ"}
+                </strong>{" "}
+                (Sân:{" "}
+                <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                  {invoiceToDelete.court?.name || "N/A"}
+                </span>
+                ) không?
+              </p>
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-700 dark:text-rose-300 font-medium flex items-center gap-2">
+                <Info size={18} className="shrink-0" />
+                <span>
+                  Hành động này không thể hoàn tác và sẽ ảnh hưởng trực tiếp đến
+                  dữ liệu thống kê doanh thu.
+                </span>
+              </div>
+            </div>
+
+            {/* Footer Modal Xóa */}
+            <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+              <button
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl text-sm font-medium transition cursor-pointer disabled:opacity-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
               </button>
             </div>
           </div>

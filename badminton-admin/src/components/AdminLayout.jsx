@@ -18,6 +18,7 @@ import {
   X,
   Eye,
   EyeOff,
+  Repeat,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import API from "../services/api";
@@ -258,6 +259,18 @@ export default function AdminLayout() {
               >
                 <Calendar size={19} />
                 <span>Quản Lý Đặt Lịch</span>
+              </Link>
+
+              <Link
+                to="/fixed-schedules"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition text-sm ${
+                  location.pathname === "/fixed-schedules"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <Repeat size={19} />
+                <span>Quản Lý Lịch Cố Định</span>
               </Link>
 
               <Link

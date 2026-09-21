@@ -9,6 +9,13 @@ const bookingSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Thêm trường liên kết đến gói lịch cố định (nếu đây là lịch sinh ra từ lịch cố định)
+    fixedScheduleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FixedSchedule",
+      default: null,
+    },
+
     // Dành cho khách có đăng nhập (có thể null nếu là khách vãng lai)
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
 
@@ -24,7 +31,14 @@ const bookingSchema = new mongoose.Schema(
 
     paymentStatus: {
       type: String,
-      enum: ["pending", "deposit_paid", "fully_paid", "cancelled"],
+      enum: [
+        "pending",
+        "deposit_paid",
+        "fully_paid",
+        "deposit_retained",
+        "refunded",
+        "cancelled",
+      ],
       default: "pending",
     },
     bookingStatus: {

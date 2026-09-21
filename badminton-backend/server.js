@@ -12,6 +12,7 @@ import authRouter from "./routes/AuthRoutes.js";
 import userRouter from "./routes/UserRoutes.js";
 import invoiceRouter from "./routes/InvoiceRoutes.js";
 import dashboardRouter from "./routes/DashboardRoutes.js";
+import fixedScheduleRoutes from "./routes/fixedScheduleRoutes.js";
 
 dotenv.config();
 connectDB(); // Kết nối MongoDB
@@ -29,6 +30,7 @@ app.use("/api/users", userRouter);
 app.use("/api/products", productRouter);
 app.use("/api/invoices", invoiceRouter);
 app.use("/api/stats", dashboardRouter);
+app.use("/api/fixed-schedules", fixedScheduleRoutes);
 
 app.get("/", (req, res) => {
   res.send("Badminton Management API is running...");

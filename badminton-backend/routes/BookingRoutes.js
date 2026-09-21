@@ -6,6 +6,7 @@ import {
   checkInBooking,
   getAllBookings,
   deleteBooking,
+  handleNoShowBooking,
 } from "../controllers/BookingController.js";
 import {
   verifyToken,
@@ -34,5 +35,12 @@ bookingRouter.delete(
   verifyAdminOrStaff,
   deleteBooking,
 ); // Xóa lịch đặt
+
+bookingRouter.put(
+  "/:bookingId/no-show",
+  verifyToken,
+  verifyAdminOrStaff,
+  handleNoShowBooking,
+); // Route xử lý bùng sân
 
 export default bookingRouter;

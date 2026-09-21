@@ -4,13 +4,15 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    phone: { type: String, required: true, unique: true }, // Dùng số điện thoại hoặc email làm tài khoản
-    password: { type: String, required: true }, // Mật khẩu đã mã hóa bằng bcrypt
+    phone: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
     role: {
       type: String,
       enum: ["user", "staff", "admin"],
       default: "user",
-    }, // user: khách hàng, staff: nhân viên quầy, admin: chủ sân
+    },
+    strikeCount: { type: Number, default: 0 }, // Đếm số lần bùng sân
+    isRequireDeposit: { type: Boolean, default: false }, // Cờ bật bắt buộc cọc 100%
   },
   { timestamps: true },
 );

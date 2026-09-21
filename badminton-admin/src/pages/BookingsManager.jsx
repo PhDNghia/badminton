@@ -10,7 +10,6 @@ import {
   Clock,
   User,
   MapPin,
-  MousePointerClick,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -20,7 +19,6 @@ export default function BookingsManager() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Ngày được chọn trên lưới trực quan
   // Lấy ngày hiện tại định dạng YYYY-MM-DD theo giờ địa phương
   const getTodayString = () => {
     const d = new Date();
@@ -30,7 +28,6 @@ export default function BookingsManager() {
     return `${year}-${month}-${day}`;
   };
 
-  // Đưa vào state mặc định
   const [selectedDate, setSelectedDate] = useState(getTodayString());
 
   // Form tạo lịch đặt mới
@@ -55,14 +52,15 @@ export default function BookingsManager() {
   const currentUser = JSON.parse(localStorage.getItem("adminUser") || "{}");
   const isAdmin = currentUser.role === "admin";
 
-  // Khung giờ từ 0:00 đến 23:00
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
-  // Modal xác nhận tùy chỉnh
+  // Modal xác nhận tùy chỉnh chung cho toàn trang
   const [confirmModal, setConfirmModal] = useState({
     show: false,
     title: "",
     message: "",
+    isNoShowAction: false,
+    bookingId: null,
     onConfirm: null,
   });
 
@@ -87,7 +85,22 @@ export default function BookingsManager() {
     fetchData();
   }, []);
 
-  // Hàm tự động tính tiền theo đơn giá từng giờ yêu cầu
+  // Tự động ép tiền cọc bằng tổng tiền nếu khách thuộc diện yêu cầu cọc bắt buộc
+  useEffect(() => {
+    if (userId) {
+      const selectedUserObj = users.find((u) => u._id === userId);
+
+      if (
+        selectedUserObj &&
+        (selectedUserObj.isRequireDeposit || selectedUserObj.strikeCount > 0)
+      ) {
+        if (totalPrice) {
+          setDepositAmount(totalPrice);
+        }
+      }
+    }
+  }, [userId, users, totalPrice]);
+
   const calculateTotalPrice = (start, end) => {
     if (!start || !end) {
       setTotalPrice(0);
@@ -116,9 +129,11 @@ export default function BookingsManager() {
     setTotalPrice(total);
   };
 
-  // Lấy trạng thái của ô giờ trên lưới
   const getSlotStatus = (cId, hour) => {
     const booking = bookings.find((b) => {
+      if (b.bookingStatus === "cancelled" || b.bookingStatus === "ĐÃ HỦY")
+        return false;
+
       const bCourtId = b.court?._id || b.court;
       if (bCourtId !== cId) return false;
 
@@ -265,11 +280,34 @@ export default function BookingsManager() {
     }
   };
 
+  const handleNoShow = async (bookingId, actionType = "retained") => {
+    try {
+      const res = await API.put(`/bookings/${bookingId}/no-show`, {
+        actionType,
+      });
+      if (res.data && res.data.success) {
+        toast.success(res.data.message || "Đã xử lý bùng sân thành công!");
+        fetchData();
+      } else {
+        toast.error(res.data?.message || "Lỗi xử lý từ server!");
+      }
+    } catch (error) {
+      console.error("Lỗi chi tiết:", error);
+      const errorMsg =
+        error.response?.data?.message ||
+        error.message ||
+        "Lỗi khi xử lý bùng sân!";
+      toast.error(errorMsg);
+    }
+  };
+
   const confirmActionModal = (title, message, apiEndpoint) => {
     setConfirmModal({
       show: true,
       title,
       message,
+      isNoShowAction: false,
+      bookingId: null,
       onConfirm: async () => {
         try {
           const res = await API.delete(apiEndpoint);
@@ -284,13 +322,14 @@ export default function BookingsManager() {
           show: false,
           title: "",
           message: "",
+          isNoShowAction: false,
+          bookingId: null,
           onConfirm: null,
         });
       },
     });
   };
 
-  // Helper hiển thị màu sắc theo trạng thái
   const getSlotColor = (status) => {
     switch (status) {
       case "confirmed":
@@ -309,7 +348,6 @@ export default function BookingsManager() {
     }
   };
 
-  // Helper dịch trạng thái sang tiếng Việt và gán màu badge tương ứng
   const renderStatusBadge = (status) => {
     switch (status) {
       case "confirmed":
@@ -346,15 +384,15 @@ export default function BookingsManager() {
     }
   };
 
-  // Lọc danh sách đặt lịch chỉ lấy ngày trùng với selectedDate
   const filteredBookings = bookings.filter((item) => {
     if (!item.date) return false;
-    const itemDate = new Date(item.date).toISOString().split("T")[0];
+    // Cắt chuỗi trực tiếp để tránh lệch múi giờ UTC so với chuỗi "YYYY-MM-DD" từ database
+    const itemDate = String(item.date).split("T")[0];
     return itemDate === selectedDate;
   });
-
   return (
     <div className="pb-12" onMouseUp={handleMouseUp}>
+      {/* MODAL XÁC NHẬN CHUNG */}
       {confirmModal.show && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800">
@@ -367,29 +405,72 @@ export default function BookingsManager() {
             <p className="text-slate-600 dark:text-slate-300 text-sm mb-6">
               {confirmModal.message}
             </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setConfirmModal({
-                    show: false,
-                    title: "",
-                    message: "",
-                    onConfirm: null,
-                  })
-                }
-                className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                onClick={confirmModal.onConfirm}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium shadow-md cursor-pointer"
-              >
-                Xác nhận
-              </button>
-            </div>
+
+            {confirmModal.isNoShowAction ? (
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleNoShow(confirmModal.bookingId, "retained");
+                    setConfirmModal({
+                      show: false,
+                      title: "",
+                      message: "",
+                      isNoShowAction: false,
+                      bookingId: null,
+                      onConfirm: null,
+                    });
+                  }}
+                  className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium shadow-md cursor-pointer flex items-center justify-center gap-2"
+                >
+                  🔒 Giữ lại tiền cọc (Đẩy vào hóa đơn & Phạt tài khoản)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleNoShow(confirmModal.bookingId, "refund");
+                    setConfirmModal({
+                      show: false,
+                      title: "",
+                      message: "",
+                      isNoShowAction: false,
+                      bookingId: null,
+                      onConfirm: null,
+                    });
+                  }}
+                  className="w-full py-2.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
+                >
+                  ↩️ Hoàn tiền cọc / Hủy đơn bình thường
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmModal({
+                      show: false,
+                      title: "",
+                      message: "",
+                      isNoShowAction: false,
+                      bookingId: null,
+                      onConfirm: null,
+                    })
+                  }
+                  className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmModal.onConfirm}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium shadow-md cursor-pointer"
+                >
+                  Xác nhận
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -480,29 +561,52 @@ export default function BookingsManager() {
                 />
               </>
             ) : (
-              <select
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                required
-                className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none text-slate-800 dark:text-white cursor-pointer md:col-span-2"
-                style={{ colorScheme: "dark" }}
-              >
-                <option
-                  value=""
-                  className="bg-white dark:bg-slate-800 text-slate-400"
+              <div className="md:col-span-2 flex flex-col gap-1.5">
+                <select
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  required
+                  className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none text-slate-800 dark:text-white cursor-pointer"
+                  style={{ colorScheme: "dark" }}
                 >
-                  -- Chọn thành viên --
-                </option>
-                {users.map((u) => (
                   <option
-                    key={u._id}
-                    value={u._id}
-                    className="bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                    value=""
+                    className="bg-white dark:bg-slate-800 text-slate-400"
                   >
-                    {u.name} - {u.phone}
+                    -- Chọn thành viên --
                   </option>
-                ))}
-              </select>
+                  {users.map((u) => (
+                    <option
+                      key={u._id}
+                      value={u._id}
+                      className="bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                    >
+                      {u.name} - {u.phone}{" "}
+                      {u.strikeCount > 0 ? `(Bùng ${u.strikeCount} lần)` : ""}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Dòng hiển thị cảnh báo tinh tế ngay dưới ô chọn nếu khách có lịch sử bùng sân */}
+                {userId &&
+                  (() => {
+                    const selectedUserObj = users.find((u) => u._id === userId);
+                    if (
+                      selectedUserObj &&
+                      (selectedUserObj.strikeCount > 0 ||
+                        selectedUserObj.isRequireDeposit)
+                    ) {
+                      return (
+                        <span className="text-xs text-amber-500 font-medium flex items-center gap-1 px-1">
+                          ⚠️ Khách hàng này có lịch sử bùng sân (
+                          {selectedUserObj.strikeCount || 0} lần). Hệ thống đã
+                          tự động yêu cầu cọc 100%.
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+              </div>
             )}
 
             <input
@@ -511,7 +615,6 @@ export default function BookingsManager() {
               disabled
               required
               className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl outline-none bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed"
-              title="Ngày tự động lấy từ sơ đồ trực quan"
             />
 
             <div className="flex items-center gap-2 md:col-span-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 cursor-not-allowed">
@@ -574,6 +677,7 @@ export default function BookingsManager() {
         </div>
       )}
 
+      {/* SƠ ĐỒ TRỰC QUAN */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-8 select-none">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-4 bg-slate-50 dark:bg-slate-900/50">
           <div className="flex items-center gap-3">
@@ -599,7 +703,7 @@ export default function BookingsManager() {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-amber-400"></span> Chờ
-              cọc
+              xác nhận
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-full bg-blue-500"></span> Đã xác
@@ -705,6 +809,7 @@ export default function BookingsManager() {
         </div>
       </div>
 
+      {/* DANH SÁCH CHI TIẾT */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
         <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-4">
           Danh Sách Lịch Đặt Chi Tiết Ngày {selectedDate} (
@@ -794,23 +899,63 @@ export default function BookingsManager() {
                       <td className="p-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {item.bookingStatus === "pending_deposit" && (
-                            <button
-                              onClick={() => handleConfirmDeposit(item._id)}
-                              className="px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
-                              title="Xác nhận cọc"
-                            >
-                              <CheckCircle size={14} /> Duyệt cọc
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleConfirmDeposit(item._id)}
+                                className="px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
+                                title="Xác nhận cọc"
+                              >
+                                <CheckCircle size={14} /> Duyệt cọc
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setConfirmModal({
+                                    show: true,
+                                    title: "Xác nhận khách bùng sân",
+                                    message:
+                                      "Bạn muốn xử lý khoản tiền cọc của lịch đặt này như thế nào?",
+                                    isNoShowAction: true,
+                                    bookingId: item._id,
+                                    onConfirm: null,
+                                  });
+                                }}
+                                className="px-2.5 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
+                                title="Khách bùng sân"
+                              >
+                                <AlertTriangle size={14} /> Bùng sân
+                              </button>
+                            </>
                           )}
 
                           {item.bookingStatus === "confirmed" && (
-                            <button
-                              onClick={() => handleCheckIn(item._id)}
-                              className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
-                              title="Check-in cho khách"
-                            >
-                              <CheckSquare size={14} /> Nhận sân
-                            </button>
+                            <>
+                              <button
+                                onClick={() => handleCheckIn(item._id)}
+                                className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
+                                title="Check-in cho khách"
+                              >
+                                <CheckSquare size={14} /> Nhận sân
+                              </button>
+
+                              <button
+                                onClick={() => {
+                                  setConfirmModal({
+                                    show: true,
+                                    title: "Xác nhận khách bùng sân",
+                                    message:
+                                      "Bạn muốn xử lý khoản tiền cọc của lịch đặt này như thế nào?",
+                                    isNoShowAction: true,
+                                    bookingId: item._id,
+                                    onConfirm: null,
+                                  });
+                                }}
+                                className="px-2.5 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
+                                title="Khách bùng sân"
+                              >
+                                <AlertTriangle size={14} /> Bùng sân
+                              </button>
+                            </>
                           )}
 
                           {isAdmin && (

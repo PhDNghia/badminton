@@ -19,15 +19,11 @@ const invoiceSchema = new mongoose.Schema(
     },
     customerName: { type: String, default: "Khách lẻ" },
     phone: { type: String, default: "" },
-
-    // Tên thu ngân thực hiện ca thanh toán
     cashierName: { type: String, default: "Thu ngân ca trực" },
 
-    // Tiền sân và chi phí
     courtFee: { type: Number, default: 0 },
     depositPaid: { type: Number, default: 0 },
 
-    // Danh sách dịch vụ/sản phẩm mua thêm tại quầy
     items: [
       {
         product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
@@ -49,6 +45,8 @@ const invoiceSchema = new mongoose.Schema(
         "paid_full",
         "cancelled",
         "pending",
+        "forfeited_deposit",
+        "refunded",
       ],
       default: "pending",
     },

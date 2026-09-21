@@ -1,6 +1,5 @@
-// badminton-admin/src/pages/ProductsManager.jsx
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import API from "../services/api"; // Sử dụng API instance đã có Token interceptor
 import {
   Plus,
   Search,
@@ -16,7 +15,7 @@ export default function ProductsManager() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // State Modal
+  // State Modal Thêm / Sửa
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
@@ -26,6 +25,10 @@ export default function ProductsManager() {
     price: "",
     stock: "",
   });
+
+  // State Modal Xác Nhận Xóa
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
   // State thông báo banner
   const [notification, setNotification] = useState({ message: "", type: "" });
@@ -41,14 +44,15 @@ export default function ProductsManager() {
 
   const fetchProducts = async () => {
     try {
-      let url = `http://localhost:5000/api/products?`;
-      if (searchQuery) url += `search=${searchQuery}&`;
+      let url = `/products?`;
+      if (searchQuery) url += `search=${encodeURIComponent(searchQuery)}&`;
       if (selectedCategory && selectedCategory !== "all")
         url += `category=${selectedCategory}`;
 
-      const res = await axios.get(url);
+      const res = await API.get(url);
       setProducts(res.data.data || []);
     } catch (error) {
+      console.error("Lỗi tải sản phẩm:", error);
       showNotification("Lỗi tải danh sách sản phẩm!", "error");
     }
   };
@@ -75,31 +79,39 @@ export default function ProductsManager() {
     e.preventDefault();
     try {
       if (isEditing) {
-        await axios.put(
-          `http://localhost:5000/api/products/${currentId}`,
-          formData,
-        );
+        await API.put(`/products/${currentId}`, formData);
         showNotification("Cập nhật sản phẩm thành công!");
       } else {
-        await axios.post("http://localhost:5000/api/products", formData);
+        await API.post("/products", formData);
         showNotification("Thêm sản phẩm mới thành công!");
       }
       setShowModal(false);
       fetchProducts();
     } catch (error) {
+      console.error("Lỗi lưu sản phẩm:", error);
       showNotification("Có lỗi xảy ra, vui lòng thử lại!", "error");
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này không?")) {
-      try {
-        await axios.delete(`http://localhost:5000/api/products/${id}`);
-        showNotification("Đã xóa sản phẩm thành công!");
-        fetchProducts();
-      } catch (error) {
-        showNotification("Lỗi khi xóa sản phẩm!", "error");
-      }
+  // Mở modal xác nhận xóa
+  const handleDeleteClick = (product) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  // Thực thi xóa sản phẩm qua API sau khi xác nhận trong Modal
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    try {
+      await API.delete(`/products/${productToDelete._id}`);
+      showNotification("Đã xóa sản phẩm thành công!");
+      setShowDeleteModal(false);
+      setProductToDelete(null);
+      fetchProducts();
+    } catch (error) {
+      console.error("Lỗi xóa sản phẩm:", error);
+      showNotification("Lỗi khi xóa sản phẩm!", "error");
+      setShowDeleteModal(false);
     }
   };
 
@@ -234,7 +246,7 @@ export default function ProductsManager() {
                         <Edit2 size={16} />
                       </button>
                       <button
-                        onClick={() => handleDelete(product._id)}
+                        onClick={() => handleDeleteClick(product)}
                         className="p-2 bg-red-50 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition-all cursor-pointer"
                         title="Xóa"
                       >
@@ -294,30 +306,10 @@ export default function ProductsManager() {
                     setFormData({ ...formData, category: e.target.value })
                   }
                 >
-                  <option
-                    value="drink"
-                    className="bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                  >
-                    Nước giải khát
-                  </option>
-                  <option
-                    value="shuttlecock"
-                    className="bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                  >
-                    Ống cầu lông
-                  </option>
-                  <option
-                    value="accessory"
-                    className="bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                  >
-                    Phụ kiện
-                  </option>
-                  <option
-                    value="clothing"
-                    className="bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                  >
-                    Quần áo / Khác
-                  </option>
+                  <option value="drink">Nước giải khát</option>
+                  <option value="shuttlecock">Ống cầu lông</option>
+                  <option value="accessory">Phụ kiện</option>
+                  <option value="clothing">Quần áo / Khác</option>
                 </select>
               </div>
 
@@ -371,6 +363,46 @@ export default function ProductsManager() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác Nhận Xóa */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-6 border border-slate-200 dark:border-slate-800 transform transition-all text-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">
+              Xác nhận xóa sản phẩm
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+              Bạn có chắc chắn muốn xóa sản phẩm{" "}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                "{productToDelete?.name}"
+              </span>{" "}
+              không? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setProductToDelete(null);
+                }}
+                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 font-medium text-sm transition-all cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium text-sm shadow-sm transition-all cursor-pointer"
+              >
+                Xác nhận xóa
+              </button>
+            </div>
           </div>
         </div>
       )}
