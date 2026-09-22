@@ -13,6 +13,7 @@ import ProductsManager from "./pages/ProductsManager";
 import BillingManager from "./pages/BillingManager";
 import PaymentHistory from "./pages/PaymentHistory";
 import FixedSchedulesManager from "./pages/FixedSchedulesManager";
+import DiscountsManager from "./pages/DiscountManager";
 
 // Các trang quản lý khác (tạm thời để trống component hoặc tạo file mock tương tự)
 const DummyPage = ({ title }) => (
@@ -35,6 +36,7 @@ function App() {
             <Route path="/products" element={<ProductsManager />} />
             <Route path="/billings" element={<BillingManager />} />
             <Route path="/payments" element={<PaymentHistory />} />
+            <Route path="/discounts" element={<DiscountsManager />} />
             <Route
               path="/fixed-schedules"
               element={<FixedSchedulesManager />}

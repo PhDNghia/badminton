@@ -40,11 +40,9 @@ export default function PaymentHistory() {
   const [endDate, setEndDate] = useState("");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
 
-  // State cho Modal xem chi tiết hóa đơn
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // State cho Modal xác nhận xóa hóa đơn
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -78,6 +76,56 @@ export default function PaymentHistory() {
     if (lower.includes("transfer") || lower.includes("chuyển khoản"))
       return "Chuyển khoản";
     return method;
+  };
+
+  const calculateInvoiceAmounts = (item) => {
+    if (!item)
+      return {
+        grossTotal: 0,
+        discount: 0,
+        finalRevenue: 0,
+        deposit: 0,
+        prepaidItems: 0,
+        actualPayAtCounter: 0,
+      };
+
+    const courtPrice = item.courtFee || 0;
+    const itemsTotal = (item.items || []).reduce(
+      (sum, i) => sum + (i.price || 0) * (i.quantity || 1),
+      0,
+    );
+    const prepaidItems = (item.items || []).reduce(
+      (sum, i) => sum + (i.isPaid ? (i.price || 0) * (i.quantity || 1) : 0),
+      0,
+    );
+
+    const grossTotal = item.totalAmount || courtPrice + itemsTotal;
+    const discount = item.discountAmount || 0;
+    const deposit = item.depositPaid || 0;
+
+    const isForfeited =
+      item.paymentStatus === "forfeited_deposit" ||
+      item.paymentStatus === "deposit_retained";
+
+    let finalRevenue = 0;
+    let actualPayAtCounter = 0;
+
+    if (isForfeited) {
+      finalRevenue = deposit;
+      actualPayAtCounter = deposit;
+    } else {
+      finalRevenue = Math.max(0, grossTotal - discount);
+      actualPayAtCounter = Math.max(0, finalRevenue - deposit - prepaidItems);
+    }
+
+    return {
+      grossTotal,
+      discount,
+      finalRevenue,
+      deposit,
+      prepaidItems,
+      actualPayAtCounter,
+    };
   };
 
   const renderPaymentStatus = (item) => {
@@ -189,10 +237,10 @@ export default function PaymentHistory() {
   ]);
 
   const totalRevenue = useMemo(() => {
-    return filteredPayments.reduce(
-      (acc, curr) => acc + (curr.totalAmount || 0),
-      0,
-    );
+    return filteredPayments.reduce((acc, curr) => {
+      const { finalRevenue } = calculateInvoiceAmounts(curr);
+      return acc + finalRevenue;
+    }, 0);
   }, [filteredPayments]);
 
   const getTimeFilterLabel = () => {
@@ -211,14 +259,12 @@ export default function PaymentHistory() {
     setIsModalOpen(true);
   };
 
-  // Mở modal xác nhận xóa
   const handleOpenDeleteModal = (e, invoice) => {
     e.stopPropagation();
     setInvoiceToDelete(invoice);
     setIsDeleteModalOpen(true);
   };
 
-  // Thực hiện gọi API xóa khi người dùng bấm xác nhận trong Modal
   const handleConfirmDelete = async () => {
     if (!invoiceToDelete) return;
 
@@ -251,6 +297,7 @@ export default function PaymentHistory() {
         </h1>
       </div>
 
+      {/* KHU VỰC BỘ LỌC */}
       <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
@@ -295,92 +342,77 @@ export default function PaymentHistory() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-          {(timeFilterType === "day" ||
-            timeFilterType === "week" ||
-            timeFilterType === "quarter") && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-medium">
-                Chọn ngày:
-              </span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl text-sm text-slate-800 dark:text-white outline-none cursor-pointer"
-                style={{ colorScheme: "dark" }}
-              />
-            </div>
-          )}
-
-          {timeFilterType === "month" && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-medium">
-                Chọn tháng:
-              </span>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl text-sm text-slate-800 dark:text-white outline-none cursor-pointer"
-                style={{ colorScheme: "dark" }}
-              />
-            </div>
-          )}
-
-          {timeFilterType === "year" && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-medium">
-                Chọn năm:
-              </span>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl text-sm text-slate-800 dark:text-white outline-none cursor-pointer"
-              >
-                <option value="2025">2025</option>
-                <option value="2026">2026</option>
-                <option value="2027">2027</option>
-              </select>
-            </div>
-          )}
-
-          {timeFilterType === "custom" && (
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 font-medium">
-                  Từ ngày:
-                </span>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl text-sm text-slate-800 dark:text-white outline-none cursor-pointer"
-                  style={{ colorScheme: "dark" }}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400 font-medium">
-                  Đến ngày:
-                </span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl text-sm text-slate-800 dark:text-white outline-none cursor-pointer"
-                  style={{ colorScheme: "dark" }}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="text-xs text-slate-400 ml-auto">
-            Hiển thị kết quả cho:{" "}
-            <strong className="text-slate-700 dark:text-slate-300">
-              {filteredPayments.length} giao dịch
-            </strong>
+        {/* CÁC Ô CHỌN THỜI GIAN ĐI KÈM THEO LOẠI BỘ LỌC */}
+        {(timeFilterType === "day" ||
+          timeFilterType === "week" ||
+          timeFilterType === "quarter") && (
+          <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <label className="text-xs font-semibold text-slate-500">
+              Chọn ngày mốc:
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none cursor-pointer"
+              style={{ colorScheme: "dark" }}
+            />
           </div>
-        </div>
+        )}
+
+        {timeFilterType === "month" && (
+          <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <label className="text-xs font-semibold text-slate-500">
+              Chọn tháng:
+            </label>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none cursor-pointer"
+              style={{ colorScheme: "dark" }}
+            />
+          </div>
+        )}
+
+        {timeFilterType === "year" && (
+          <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <label className="text-xs font-semibold text-slate-500">
+              Chọn năm:
+            </label>
+            <input
+              type="number"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none w-28"
+            />
+          </div>
+        )}
+
+        {timeFilterType === "custom" && (
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <label className="text-xs font-semibold text-slate-500">
+              Từ ngày:
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none cursor-pointer"
+              style={{ colorScheme: "dark" }}
+            />
+            <label className="text-xs font-semibold text-slate-500">
+              Đến ngày:
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none cursor-pointer"
+              style={{ colorScheme: "dark" }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -445,9 +477,8 @@ export default function PaymentHistory() {
                   <th className="p-3">Sân cầu lông</th>
                   <th className="p-3">Thời gian chơi</th>
                   <th className="p-3">Phương thức</th>
-                  <th className="p-3">Tổng tiền sân</th>
-                  <th className="p-3">Đã cọc</th>
-                  <th className="p-3">Thực nhận / Còn lại</th>
+                  <th className="p-3">Tổng doanh thu hóa đơn</th>
+                  <th className="p-3">Thu tại quầy</th>
                   <th className="p-3 text-center">Trạng thái</th>
                   <th className="p-3 text-center">Hành động</th>
                 </tr>
@@ -458,15 +489,8 @@ export default function PaymentHistory() {
                   const customerPhone = item.phone || "Không có SĐT";
                   const bookingInfo = item.booking || {};
 
-                  const totalAmount = item.totalAmount || 0;
-                  const depositPaid = item.depositPaid || 0;
-
-                  const isForfeited =
-                    item.paymentStatus === "forfeited_deposit" ||
-                    item.paymentStatus === "deposit_retained";
-                  const remainingPay = isForfeited
-                    ? depositPaid
-                    : totalAmount - depositPaid;
+                  const { finalRevenue, actualPayAtCounter } =
+                    calculateInvoiceAmounts(item);
 
                   return (
                     <tr
@@ -533,21 +557,14 @@ export default function PaymentHistory() {
                         </div>
                       </td>
 
-                      {/* Cột Tổng tiền sân */}
                       <td className="p-3 font-bold text-slate-800 dark:text-white">
-                        {totalAmount.toLocaleString()} đ
+                        {finalRevenue.toLocaleString()} đ
                       </td>
 
-                      {/* Cột Tiền cọc */}
-                      <td className="p-3 text-xs font-semibold text-amber-600">
-                        {depositPaid.toLocaleString()} đ
-                      </td>
-
-                      {/* Cột Thực nhận / Còn lại */}
                       <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">
-                        {remainingPay.toLocaleString()} đ
+                        {actualPayAtCounter.toLocaleString()} đ
                         <div className="text-[10px] font-normal text-slate-400">
-                          {isForfeited ? "(Thu cọc hủy sân)" : "(Thu tại quầy)"}
+                          (Thu tại quầy)
                         </div>
                       </td>
 
@@ -591,7 +608,6 @@ export default function PaymentHistory() {
       {isModalOpen && selectedInvoice && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            {/* Header Modal */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <ReceiptText className="text-emerald-600" size={24} />
@@ -607,19 +623,7 @@ export default function PaymentHistory() {
               </button>
             </div>
 
-            {/* Body Modal */}
             <div className="p-6 space-y-5 text-sm max-h-[75vh] overflow-y-auto">
-              {(selectedInvoice.paymentStatus === "forfeited_deposit" ||
-                selectedInvoice.paymentStatus === "deposit_retained") && (
-                <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-700 dark:text-rose-300 font-medium flex items-center gap-2">
-                  <Info size={18} className="shrink-0" />
-                  <span>
-                    Hóa đơn ghi nhận tịch thu tiền cọc do khách bùng sân / hủy
-                    lịch muộn.
-                  </span>
-                </div>
-              )}
-
               <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-2 border border-slate-100 dark:border-slate-800">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Khách hàng:</span>
@@ -652,23 +656,19 @@ export default function PaymentHistory() {
                 </div>
               </div>
 
+              {/* DANH SÁCH CHI TIẾT SÂN & SẢN PHẨM & VOUCHER */}
               <div className="space-y-3">
                 <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs uppercase tracking-wider">
                   <Info size={14} className="text-emerald-500" /> Chi tiết tiền
                   sân & sản phẩm phát sinh:
                 </h4>
                 <div className="border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
-                  <div className="flex justify-between p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs">
+                  <div className="flex justify-between items-center p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs">
                     <span className="text-slate-600 dark:text-slate-300">
                       Tiền sân ({selectedInvoice.court?.name || "Sân"})
                     </span>
                     <span className="font-semibold text-slate-800 dark:text-white">
-                      {(
-                        selectedInvoice.courtFee ||
-                        selectedInvoice.totalAmount ||
-                        0
-                      ).toLocaleString()}{" "}
-                      đ
+                      {(selectedInvoice.courtFee || 0).toLocaleString()} đ
                     </span>
                   </div>
 
@@ -676,14 +676,25 @@ export default function PaymentHistory() {
                     selectedInvoice.items.map((item, idx) => (
                       <div
                         key={idx}
-                        className="flex justify-between p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs"
+                        className="flex justify-between items-center p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs"
                       >
-                        <span className="text-slate-600 dark:text-slate-300">
-                          {item.name}{" "}
-                          <span className="text-slate-400">
-                            ({item.quantity}x)
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-600 dark:text-slate-300">
+                            {item.name}{" "}
+                            <span className="text-slate-400">
+                              ({item.quantity}x)
+                            </span>
                           </span>
-                        </span>
+                          {item.isPaid ? (
+                            <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 rounded font-medium">
+                              Đã trả lẻ
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 rounded font-medium">
+                              Chưa trả
+                            </span>
+                          )}
+                        </div>
                         <span className="font-semibold text-slate-800 dark:text-white">
                           {(
                             (item.price || 0) * (item.quantity || 1)
@@ -698,54 +709,102 @@ export default function PaymentHistory() {
                     </div>
                   )}
 
-                  {selectedInvoice.discount > 0 && (
-                    <div className="flex justify-between p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs">
-                      <span className="text-slate-600 dark:text-slate-300">
-                        Giảm giá / Khuyến mãi
+                  {(selectedInvoice.discountAmount > 0 ||
+                    selectedInvoice.discountCode) && (
+                    <div className="flex justify-between items-center p-3 bg-emerald-50/30 dark:bg-emerald-950/20 text-xs">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        Giảm giá Voucher:{" "}
+                        <strong className="underline">
+                          {selectedInvoice.discountCode || "Áp dụng"}
+                        </strong>
                       </span>
-                      <span className="font-semibold text-rose-500">
-                        -{(selectedInvoice.discount || 0).toLocaleString()} đ
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        -
+                        {(selectedInvoice.discountAmount || 0).toLocaleString()}{" "}
+                        đ
                       </span>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 p-4 rounded-xl space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-emerald-800 dark:text-emerald-300 font-medium">
-                    Tổng tiền sân:
-                  </span>
-                  <span className="font-bold text-emerald-700 dark:text-emerald-300 text-base">
-                    {(selectedInvoice.totalAmount || 0).toLocaleString()} đ
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600 dark:text-slate-400">
-                    Đã cọc trước:
-                  </span>
-                  <span className="font-semibold text-amber-600">
-                    {(selectedInvoice.depositPaid || 0).toLocaleString()} đ
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm border-t border-emerald-200 dark:border-emerald-900 pt-2">
-                  <span className="text-slate-600 dark:text-slate-400 font-medium">
-                    Hình thức thanh toán:
-                  </span>
-                  <span className="font-semibold text-slate-800 dark:text-white">
-                    {formatPaymentMethod(selectedInvoice.paymentMethod)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm items-center pt-1">
-                  <span className="text-slate-600 dark:text-slate-400 font-medium">
-                    Trạng thái:
-                  </span>
-                  <div>{renderPaymentStatus(selectedInvoice)}</div>
-                </div>
-              </div>
+              {/* TỔNG KẾT THANH TOÁN TRONG MODAL */}
+              {(() => {
+                const {
+                  finalRevenue,
+                  discount,
+                  deposit,
+                  prepaidItems,
+                  actualPayAtCounter,
+                } = calculateInvoiceAmounts(selectedInvoice);
+
+                return (
+                  <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 p-4 rounded-xl space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-slate-600 dark:text-slate-400 font-medium">
+                        Tổng doanh thu hóa đơn:
+                      </span>
+                      <span className="font-bold text-slate-800 dark:text-white text-base">
+                        {finalRevenue.toLocaleString()} đ
+                      </span>
+                    </div>
+                    {discount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600 dark:text-slate-400">
+                          Voucher:
+                        </span>
+                        <span className="font-semibold text-amber-600">
+                          -{discount.toLocaleString()} đ
+                        </span>
+                      </div>
+                    )}
+                    {prepaidItems > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600 dark:text-slate-400">
+                          Các món đã thanh toán lẻ trước:
+                        </span>
+                        <span className="font-semibold text-amber-600">
+                          -{prepaidItems.toLocaleString()} đ
+                        </span>
+                      </div>
+                    )}
+                    {deposit > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600 dark:text-slate-400">
+                          Đã cọc trước:
+                        </span>
+                        <span className="font-semibold text-amber-600">
+                          -{deposit.toLocaleString()} đ
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm border-t border-emerald-200 dark:border-emerald-900 pt-2">
+                      <span className="text-emerald-800 dark:text-emerald-300 font-bold">
+                        Tiền khách thanh toán cuối giờ
+                      </span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-300 text-base">
+                        {actualPayAtCounter.toLocaleString()} đ
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm items-center pt-1">
+                      <span className="text-slate-600 dark:text-slate-400 font-medium">
+                        Hình thức thanh toán:
+                      </span>
+                      <span className="font-semibold text-slate-800 dark:text-white">
+                        {formatPaymentMethod(selectedInvoice.paymentMethod)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm items-center pt-1">
+                      <span className="text-slate-600 dark:text-slate-400 font-medium">
+                        Trạng thái:
+                      </span>
+                      <div>{renderPaymentStatus(selectedInvoice)}</div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
-            {/* Footer Modal */}
             <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end">
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -762,7 +821,6 @@ export default function PaymentHistory() {
       {isDeleteModalOpen && invoiceToDelete && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            {/* Header Modal Xóa */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="text-rose-600" size={24} />
@@ -778,7 +836,6 @@ export default function PaymentHistory() {
               </button>
             </div>
 
-            {/* Body Modal Xóa */}
             <div className="p-6 space-y-4 text-sm">
               <p className="text-slate-600 dark:text-slate-300">
                 Bạn có chắc chắn muốn xóa lịch sử thanh toán của khách hàng{" "}
@@ -791,16 +848,8 @@ export default function PaymentHistory() {
                 </span>
                 ) không?
               </p>
-              <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl text-xs text-rose-700 dark:text-rose-300 font-medium flex items-center gap-2">
-                <Info size={18} className="shrink-0" />
-                <span>
-                  Hành động này không thể hoàn tác và sẽ ảnh hưởng trực tiếp đến
-                  dữ liệu thống kê doanh thu.
-                </span>
-              </div>
             </div>
 
-            {/* Footer Modal Xóa */}
             <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
               <button
                 onClick={() => setIsDeleteModalOpen(false)}

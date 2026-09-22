@@ -10,32 +10,32 @@ import {
   verifyAdminOrStaff,
 } from "../middlewares/AuthMiddlerware.js";
 
-const fixedScheduleRoutes = express.Router();
+const fixedScheduleRouter = express.Router();
 
-fixedScheduleRoutes.post(
+fixedScheduleRouter.post(
   "/",
   verifyToken,
   verifyAdminOrStaff,
   createFixedSchedule,
 );
-fixedScheduleRoutes.get(
+fixedScheduleRouter.get(
   "/",
   verifyToken,
   verifyAdminOrStaff,
   getAllFixedSchedules,
 );
 
-fixedScheduleRoutes.put(
+fixedScheduleRouter.put(
   "/:id",
   verifyToken,
   verifyAdminOrStaff,
   updateFixedSchedule,
 );
-fixedScheduleRoutes.delete(
+fixedScheduleRouter.delete(
   "/:id",
   verifyToken,
   verifyAdminOrStaff,
   deleteFixedSchedule,
 );
 
-export default fixedScheduleRoutes;
+export default fixedScheduleRouter;

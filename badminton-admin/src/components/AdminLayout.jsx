@@ -6,7 +6,6 @@ import {
   Users,
   LogOut,
   Sun,
-  Moon,
   Calendar,
   ShoppingBasket,
   ShoppingCart,
@@ -19,6 +18,7 @@ import {
   Eye,
   EyeOff,
   Repeat,
+  Ticket,
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import API from "../services/api";
@@ -240,6 +240,29 @@ export default function AdminLayout() {
               >
                 <ShoppingBasket size={19} />
                 <span>Quản Lý Sản Phẩm</span>
+              </Link>
+
+              {/* Quản Lý Mã Giảm Giá - Chỉ Admin */}
+              <Link
+                to={isAdmin ? "/discounts" : "#"}
+                onClick={(e) => {
+                  if (!isAdmin) {
+                    e.preventDefault();
+                    toast.info(
+                      "Chỉ tài khoản Admin mới có quyền truy cập Quản Lý Mã Giảm Giá!",
+                    );
+                  }
+                }}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition text-sm ${
+                  location.pathname === "/discounts"
+                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                    : isAdmin
+                      ? "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                      : "text-slate-400 dark:text-slate-600 opacity-50 cursor-not-allowed hover:bg-transparent"
+                }`}
+              >
+                <Ticket size={19} />
+                <span>Quản Lý Mã Giảm Giá</span>
               </Link>
             </div>
           </div>

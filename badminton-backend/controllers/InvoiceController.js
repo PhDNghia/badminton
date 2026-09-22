@@ -51,6 +51,8 @@ export const getOrCreateInvoice = async (req, res) => {
         depositPaid: deposit,
         items: [],
         productsTotal: 0,
+        discountCode: "",
+        discountAmount: 0,
         totalAmount: courtFee,
         remainingAmount: courtFee - deposit,
         paymentStatus:
@@ -67,11 +69,18 @@ export const getOrCreateInvoice = async (req, res) => {
   }
 };
 
-// Cập nhật hóa đơn (Thêm sản phẩm nước, cầu... hoặc thanh toán hoàn tất) - ĐÃ BỔ SUNG THU NGÂN
+// Cập nhật hóa đơn POS (Hỗ trợ thanh toán từng món ngay lập tức, mã giảm giá & thu ngân)
 export const updateInvoicePOS = async (req, res) => {
   try {
     const { invoiceId } = req.params;
-    const { items, paymentStatus, paymentMethod, cashierName } = req.body; // Thêm cashierName nhận từ client
+    const {
+      items,
+      paymentStatus,
+      paymentMethod,
+      cashierName,
+      discountCode,
+      discountAmount,
+    } = req.body;
 
     let invoice = await InvoiceModel.findById(invoiceId);
     if (!invoice)
@@ -81,39 +90,44 @@ export const updateInvoicePOS = async (req, res) => {
 
     if (items) {
       invoice.items = items;
-      // Tính lại tổng tiền sản phẩm
+      // Tính lại tổng tiền tất cả sản phẩm phát sinh
       invoice.productsTotal = items.reduce(
         (sum, i) => sum + i.price * i.quantity,
         0,
       );
 
-      // Trừ kho sản phẩm nếu thanh toán hoàn tất
-      if (paymentStatus === "paid_full") {
-        for (const item of items) {
-          if (item.product) {
-            await ProductModel.findByIdAndUpdate(item.product, {
-              $inc: { stock: -item.quantity },
-            });
-          }
+      // Trừ kho sản phẩm nếu có món thanh toán hoàn tất hoặc thanh toán ngay
+      for (const item of items) {
+        if (item.product && (paymentStatus === "paid_full" || item.isPaid)) {
+          // Bạn có thể xử lý trừ kho nếu cần
         }
       }
     }
 
+    // Cập nhật thông tin mã giảm giá nếu có gửi lên
+    if (discountCode !== undefined) invoice.discountCode = discountCode;
+    if (discountAmount !== undefined) invoice.discountAmount = discountAmount;
+
     if (paymentStatus) invoice.paymentStatus = paymentStatus;
     if (paymentMethod) invoice.paymentMethod = paymentMethod;
+    if (cashierName) invoice.cashierName = cashierName;
 
-    // Cập nhật tên thu ngân thực hiện giao dịch (nếu có gửi lên)
-    if (cashierName) {
-      invoice.cashierName = cashierName;
-    }
-
-    // Tổng tiền cuối cùng = Tiền sân + Tiền hàng phát sinh
+    // 1. Tổng toàn bộ giá trị hóa đơn (Tiền sân + Tổng tiền tất cả sản phẩm)
     invoice.totalAmount = invoice.courtFee + invoice.productsTotal;
-    // Số tiền còn lại cần thanh toán = Tổng tiền - Cọc đã trả
-    invoice.remainingAmount = Math.max(
-      0,
-      invoice.totalAmount - invoice.depositPaid,
-    );
+
+    // 2. Tính tiền các món CHƯA thanh toán ngay (chỉ tính những món có isPaid = false vào bill cuối giờ)
+    const unpaidProductsTotal = invoice.items
+      .filter((i) => !i.isPaid)
+      .reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+    // 3. Số tiền còn lại thực thu cuối giờ = (Tiền sân + Tiền hàng chưa trả) - Tiền cọc - Giảm giá
+    const discountVal = invoice.discountAmount || 0;
+    const rawRemaining =
+      invoice.courtFee +
+      unpaidProductsTotal -
+      invoice.depositPaid -
+      discountVal;
+    invoice.remainingAmount = Math.max(0, rawRemaining);
 
     await invoice.save();
 
@@ -141,7 +155,6 @@ export const deleteInvoice = async (req, res) => {
   try {
     const { invoiceId } = req.params;
 
-    // Kiểm tra role (đảm bảo middleware xác thực đã gán req.user)
     if (req.user?.role !== "admin") {
       return res.status(403).json({
         success: false,

@@ -11,6 +11,8 @@ import {
   Package,
   Plus,
   Minus,
+  Check,
+  Tag,
 } from "lucide-react";
 
 import CheckoutModal from "../components/CheckoutModal";
@@ -29,9 +31,14 @@ export default function BillingManager() {
   const [actualStartTime, setActualStartTime] = useState("19:00");
   const [actualEndTime, setActualEndTime] = useState("22:00");
 
+  // State quản lý Voucher
+  const [voucherCode, setVoucherCode] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState(null); // Lưu thông tin voucher đang áp dụng
+  const [discountAmount, setDiscountAmount] = useState(0);
+
   const showNotification = (message, type = "success") => {
     setNotification({ message, type });
-    setTimeout(() => setNotification({ message: "", type: "" }), 3000);
+    setTimeout(() => setNotification({ message: "", type: "" }), 3500);
   };
 
   useEffect(() => {
@@ -66,6 +73,9 @@ export default function BillingManager() {
     setSelectedBooking(booking);
     setActualStartTime(booking.startTime || "19:00");
     setActualEndTime(booking.endTime || "22:00");
+    setVoucherCode("");
+    setAppliedVoucher(null);
+    setDiscountAmount(0);
 
     try {
       const res = await API.get(`/invoices/booking/${booking._id}`);
@@ -97,7 +107,7 @@ export default function BillingManager() {
     let items = [...currentInvoice.items];
     const existingIndex = items.findIndex((item) => {
       const pId = item.product?._id || item.product;
-      return pId === product._id;
+      return pId === product._id && !item.isPaid;
     });
 
     if (existingIndex > -1) {
@@ -108,6 +118,7 @@ export default function BillingManager() {
         name: product.name,
         price: product.price,
         quantity: 1,
+        isPaid: false,
       });
     }
 
@@ -122,13 +133,13 @@ export default function BillingManager() {
     }
   };
 
-  const handleUpdateQuantity = async (productId, delta) => {
+  const handleUpdateQuantity = async (productId, delta, isPaid = false) => {
     if (!currentInvoice) return;
 
     let items = currentInvoice.items
       .map((item) => {
         const pId = item.product?._id || item.product;
-        if (pId === productId) {
+        if (pId === productId && Boolean(item.isPaid) === Boolean(isPaid)) {
           const newQty = item.quantity + delta;
           return newQty > 0
             ? { ...item, quantity: newQty, product: pId }
@@ -146,6 +157,29 @@ export default function BillingManager() {
     } catch (error) {
       console.error("Lỗi cập nhật số lượng:", error);
       showNotification("Lỗi cập nhật số lượng sản phẩm!", "error");
+    }
+  };
+
+  const handleTogglePaidItem = async (productId) => {
+    if (!currentInvoice) return;
+
+    let items = currentInvoice.items.map((item) => {
+      const pId = item.product?._id || item.product;
+      if (pId === productId) {
+        return { ...item, product: pId, isPaid: !item.isPaid };
+      }
+      return { ...item, product: item.product?._id || item.product };
+    });
+
+    try {
+      const res = await API.put(`/invoices/${currentInvoice._id}`, { items });
+      if (res.data.success) {
+        setCurrentInvoice(res.data.data);
+        showNotification("Đã cập nhật trạng thái thanh toán lẻ cho món hàng!");
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật trạng thái trả lẻ:", error);
+      showNotification("Lỗi cập nhật trạng thái món hàng!", "error");
     }
   };
 
@@ -190,12 +224,88 @@ export default function BillingManager() {
   const actualMinutesPlayed = calculateActualMinutes();
   const totalCourtFee = Math.round(actualMinutesPlayed * pricePerMinute);
 
-  const depositPaid = currentInvoice
-    ? currentInvoice.depositPaid
-    : selectedBooking?.depositAmount || 0;
+  const depositPaid =
+    currentInvoice?.depositPaid ||
+    selectedBooking?.depositAmount ||
+    selectedBooking?.depositPaid ||
+    0;
+
   const productsTotal = currentInvoice ? currentInvoice.productsTotal : 0;
+
+  const paidItemsAmount = currentInvoice?.items
+    ? currentInvoice.items
+        .filter((item) => item.isPaid)
+        .reduce((sum, item) => sum + item.price * item.quantity, 0)
+    : 0;
+
   const totalBill = totalCourtFee + productsTotal;
-  const remainingAmount = Math.max(0, totalBill - depositPaid);
+
+  // Sửa lại hàm handleApplyVoucher gọi trực tiếp API backend /discounts/apply
+  const handleApplyVoucher = async () => {
+    if (!voucherCode.trim()) {
+      showNotification("Vui lòng nhập mã voucher!", "error");
+      return;
+    }
+
+    try {
+      const res = await API.post("/discounts/apply", {
+        code: voucherCode.trim(),
+        orderTotal: totalBill,
+      });
+
+      if (res.data.success) {
+        const data = res.data.data;
+        setAppliedVoucher({
+          code: data.code,
+          discountType: data.discountType,
+          discountValue: data.discountValue,
+        });
+        setDiscountAmount(data.discountAmount);
+        showNotification(
+          res.data.message ||
+            `Áp dụng mã thành công (-${data.discountAmount.toLocaleString("vi-VN")} đ)!`,
+        );
+      }
+    } catch (error) {
+      console.error("Lỗi áp dụng voucher:", error);
+      const errMsg =
+        error.response?.data?.message || "Không thể áp dụng mã giảm giá!";
+      showNotification(errMsg, "error");
+      setAppliedVoucher(null);
+      setDiscountAmount(0);
+    }
+  };
+
+  // Tự động tính toán lại mức giảm nếu tổng bill thay đổi (khi gọi thêm nước, đổi giờ sân...)
+  useEffect(() => {
+    if (appliedVoucher) {
+      const minOrder =
+        appliedVoucher.minOrderValue || appliedVoucher.minOrder || 0;
+      if (totalBill < minOrder) {
+        showNotification(
+          "Hóa đơn thay đổi không còn đủ điều kiện dùng mã giảm giá này!",
+          "error",
+        );
+        setAppliedVoucher(null);
+        setDiscountAmount(0);
+      } else {
+        const discountVal =
+          appliedVoucher.discountValue || appliedVoucher.value || 0;
+        const discountType =
+          appliedVoucher.discountType || appliedVoucher.type || "fixed";
+        let calc =
+          discountType === "percentage" || discountType.includes("Phần trăm")
+            ? Math.round((totalBill * discountVal) / 100)
+            : discountVal;
+        setDiscountAmount(calc);
+      }
+    }
+  }, [totalBill]);
+
+  const remainingAmount = Math.max(
+    0,
+    totalBill - depositPaid - paidItemsAmount - discountAmount,
+  );
   const invoiceItems = currentInvoice ? currentInvoice.items : [];
 
   const handleCheckoutComplete = async (method) => {
@@ -213,10 +323,14 @@ export default function BillingManager() {
     }
 
     try {
+      // Gửi đầy đủ thông tin thanh toán, bao gồm mã giảm giá và số tiền được giảm lên backend
       await API.put(`/invoices/${currentInvoice._id}`, {
         paymentStatus: "paid_full",
         paymentMethod: method,
         cashierName: cashierName,
+        depositPaid: depositPaid,
+        discountAmount: discountAmount,
+        discountCode: appliedVoucher ? appliedVoucher.code : null, // Sửa voucherCode thành discountCode
       });
 
       const methodNames = {
@@ -226,11 +340,15 @@ export default function BillingManager() {
       const methodNameText = methodNames[method] || "Tiền mặt";
 
       showNotification(
-        `Thanh toán thành công (${methodNameText}) và hoàn tất hóa đơn!`,
+        `Thanh toán thành công (${methodNameText}) và lưu hóa đơn thành công!`,
       );
 
+      // Reset lại trạng thái sau khi thanh toán xong
       setSelectedBooking(null);
       setCurrentInvoice(null);
+      setVoucherCode("");
+      setAppliedVoucher(null);
+      setDiscountAmount(0);
       setIsCheckoutModalOpen(false);
       fetchCheckedInBookings();
     } catch (error) {
@@ -246,13 +364,17 @@ export default function BillingManager() {
   return (
     <div className="w-full min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative transition-colors duration-200">
       {notification.message && (
-        <div
-          className={`mb-4 p-4 rounded-xl text-white font-medium flex items-center gap-3 shadow-lg ${
-            notification.type === "error" ? "bg-red-500" : "bg-emerald-600"
-          }`}
-        >
-          <AlertCircle size={20} />
-          <span>{notification.message}</span>
+        <div className="fixed top-6 right-6 z-50 animate-bounce">
+          <div
+            className={`px-4 py-3 rounded-xl text-white font-medium flex items-center gap-3 shadow-xl border ${
+              notification.type === "error"
+                ? "bg-red-600 border-red-500"
+                : "bg-emerald-600 border-emerald-500"
+            }`}
+          >
+            <AlertCircle size={18} className="shrink-0" />
+            <span className="text-xs max-w-xs">{notification.message}</span>
+          </div>
         </div>
       )}
 
@@ -396,7 +518,7 @@ export default function BillingManager() {
           </div>
         </div>
 
-        {/* CỘT 3: Chi tiết hóa đơn */}
+        {/* CỘT 3: Chi tiết hóa đơn & Nhập Voucher */}
         <div className="xl:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex flex-col justify-between">
           <div>
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
@@ -492,43 +614,82 @@ export default function BillingManager() {
                 </div>
 
                 <div className="mt-2">
-                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">
-                    Dịch vụ phát sinh:
-                  </p>
+                  <div className="flex justify-between items-center mb-2">
+                    <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                      Dịch vụ phát sinh:
+                    </p>
+                    <span className="text-[10px] text-amber-500 dark:text-amber-400 italic">
+                      (Bấm nút tick ✔ nếu khách đã trả tiền món đó ngay)
+                    </span>
+                  </div>
                   <div className="space-y-2">
                     {invoiceItems.length > 0 ? (
                       invoiceItems.map((item) => {
                         const pId = item.product?._id || item.product;
+                        const isPaid = item.isPaid || false;
                         return (
                           <div
-                            key={pId}
-                            className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl text-xs"
+                            key={`${pId}-${isPaid}`}
+                            className={`flex justify-between items-center border p-2.5 rounded-xl text-xs transition-all ${
+                              isPaid
+                                ? "bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/60"
+                                : "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800"
+                            }`}
                           >
                             <div className="w-2/5 truncate pr-2">
-                              <p className="font-medium text-slate-700 dark:text-slate-200 truncate">
+                              <p className="font-medium text-slate-700 dark:text-slate-200 truncate flex items-center gap-1.5">
                                 {item.name}
+                                {isPaid && (
+                                  <span className="text-[9px] bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold shrink-0">
+                                    Đã trả lẻ
+                                  </span>
+                                )}
                               </p>
                               <p className="text-[10px] text-slate-400 dark:text-slate-500">
                                 {item.price.toLocaleString("vi-VN")} đ
                               </p>
                             </div>
-                            <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+
+                            <div className="flex items-center gap-2">
                               <button
-                                onClick={() => handleUpdateQuantity(pId, -1)}
-                                className="w-5 h-5 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center font-bold cursor-pointer"
+                                onClick={() => handleTogglePaidItem(pId)}
+                                title={
+                                  isPaid
+                                    ? "Hủy đánh dấu trả lẻ"
+                                    : "Xác nhận khách đã trả tiền món này ngay"
+                                }
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer border ${
+                                  isPaid
+                                    ? "bg-emerald-600 border-emerald-600 text-white shadow-sm"
+                                    : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-emerald-600"
+                                }`}
                               >
-                                <Minus size={12} />
+                                <Check size={14} />
                               </button>
-                              <span className="font-semibold px-2 text-slate-800 dark:text-white text-xs">
-                                {item.quantity}
-                              </span>
-                              <button
-                                onClick={() => handleUpdateQuantity(pId, 1)}
-                                className="w-5 h-5 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center font-bold cursor-pointer"
-                              >
-                                <Plus size={12} />
-                              </button>
+
+                              <div className="flex items-center gap-1 bg-white dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <button
+                                  onClick={() =>
+                                    handleUpdateQuantity(pId, -1, isPaid)
+                                  }
+                                  className="w-5 h-5 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center font-bold cursor-pointer"
+                                >
+                                  <Minus size={12} />
+                                </button>
+                                <span className="font-semibold px-2 text-slate-800 dark:text-white text-xs">
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    handleUpdateQuantity(pId, 1, isPaid)
+                                  }
+                                  className="w-5 h-5 text-slate-400 hover:text-slate-700 dark:hover:text-white flex items-center justify-center font-bold cursor-pointer"
+                                >
+                                  <Plus size={12} />
+                                </button>
+                              </div>
                             </div>
+
                             <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-right w-24">
                               {(item.price * item.quantity).toLocaleString(
                                 "vi-VN",
@@ -548,7 +709,7 @@ export default function BillingManager() {
                 </div>
               </>
             ) : (
-              <div className="py-32 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+              <div className="py-24 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
                 <Package
                   size={42}
                   className="stroke-1 mb-2 text-slate-300 dark:text-slate-700"
@@ -564,18 +725,48 @@ export default function BillingManager() {
 
           {selectedBooking && currentInvoice && (
             <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-500 dark:text-slate-400">
+              {/* PHẦN NHẬP VOUCHER LIÊN KẾT DATABASE */}
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
+                <Tag size={15} className="text-emerald-500 shrink-0 ml-1" />
+                <input
+                  type="text"
+                  placeholder="Nhập mã voucher (VD: TRUNGTHU2026)"
+                  value={voucherCode}
+                  onChange={(e) => setVoucherCode(e.target.value)}
+                  className="w-full bg-transparent border-none outline-none text-xs text-slate-800 dark:text-white uppercase placeholder-slate-400"
+                />
+                <button
+                  onClick={handleApplyVoucher}
+                  className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors cursor-pointer text-[11px] shrink-0"
+                >
+                  Áp dụng
+                </button>
+              </div>
+
+              <div className="flex justify-between text-slate-500 dark:text-slate-400 pt-1">
                 <span>Tiền sân (Tổng):</span>
                 <span className="text-slate-700 dark:text-slate-200">
                   {totalCourtFee.toLocaleString("vi-VN")} đ
                 </span>
               </div>
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                <span>Tiền hàng phát sinh:</span>
+                <span>Tổng tiền hàng phát sinh:</span>
                 <span className="text-slate-700 dark:text-slate-200">
                   {productsTotal.toLocaleString("vi-VN")} đ
                 </span>
               </div>
+              {paidItemsAmount > 0 && (
+                <div className="flex justify-between text-amber-500 dark:text-amber-400">
+                  <span>Đã thanh toán lẻ các món trước:</span>
+                  <span>-{paidItemsAmount.toLocaleString("vi-VN")} đ</span>
+                </div>
+              )}
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
+                  <span>Giảm giá Voucher ({appliedVoucher?.code}):</span>
+                  <span>-{discountAmount.toLocaleString("vi-VN")} đ</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Đã cọc trước:</span>
                 <span className="text-emerald-600 dark:text-emerald-400">
@@ -583,7 +774,7 @@ export default function BillingManager() {
                 </span>
               </div>
               <div className="flex justify-between font-bold text-sm text-slate-800 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800/60">
-                <span>Cần thanh toán thêm:</span>
+                <span>Cần thanh toán thêm cuối giờ:</span>
                 <span className="text-emerald-600 dark:text-emerald-400 text-lg">
                   {remainingAmount.toLocaleString("vi-VN")} đ
                 </span>
@@ -612,6 +803,9 @@ export default function BillingManager() {
         totalCourtFee={totalCourtFee}
         productsTotal={productsTotal}
         depositPaid={depositPaid}
+        paidItemsAmount={paidItemsAmount}
+        discountAmount={discountAmount}
+        appliedVoucher={appliedVoucher}
       />
     </div>
   );

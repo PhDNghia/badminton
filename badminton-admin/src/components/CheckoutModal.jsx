@@ -1,6 +1,12 @@
-// badminton-admin/src/components/CheckoutModal.jsx
-import React from "react";
-import { CheckCircle2, X, QrCode, Receipt, Banknote } from "lucide-react";
+import React, { useRef } from "react";
+import {
+  CheckCircle2,
+  X,
+  QrCode,
+  Receipt,
+  Banknote,
+  Printer,
+} from "lucide-react";
 
 export default function CheckoutModal({
   isOpen,
@@ -14,21 +20,69 @@ export default function CheckoutModal({
   totalCourtFee,
   productsTotal,
   depositPaid,
+  paidItemsAmount = 0,
+  discountAmount = 0,
+  appliedVoucher = null,
 }) {
+  const printRef = useRef(null);
+
   if (!isOpen || !booking) return null;
 
   const courtName = booking.court?.name || "Sân";
   const customerName = booking.user?.name || booking.guestName || "Khách lẻ";
 
-  const BANK_ID = "MB";
-  const ACCOUNT_NO = "0912345678";
-  const ACCOUNT_NAME = "NGUYEN VAN A";
+  const BANK_ID = import.meta.env.VITE_BANK_ID;
+  const ACCOUNT_NO = import.meta.env.VITE_ACCOUNT_NO;
+  const ACCOUNT_NAME = import.meta.env.VITE_ACCOUNT_NAME;
 
   const addInfoText = `Thanh toan ${courtName} ${booking.startTime}-${booking.endTime}`;
   const encodedAddInfo = addInfoText.replace(/ /g, "%20");
   const encodedAccountName = ACCOUNT_NAME.replace(/ /g, "%20");
 
   const qrUrl = `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.jpg?amount=${remainingAmount}&addInfo=${encodedAddInfo}&accountName=${encodedAccountName}`;
+
+  // Hàm xử lý in hóa đơn nhiệt khổ K80
+  const handlePrintReceipt = () => {
+    const printContent = printRef.current;
+    if (!printContent) return;
+
+    const printWindow = window.open("", "_blank", "width=400,height=600");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Hóa đơn thanh toán - ${courtName}</title>
+          <style>
+            body {
+              font-family: 'Courier New', Courier, monospace;
+              font-size: 12px;
+              width: 80mm;
+              margin: 0;
+              padding: 10px;
+              color: #000;
+            }
+            .text-center { text-align: center; }
+            .font-bold { font-weight: bold; }
+            .flex { display: flex; justify-content: space-between; }
+            .border-b { border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; }
+            .mt-2 { margin-top: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+            th, td { text-align: left; padding: 3px 0; font-size: 11px; }
+            .text-right { text-align: right; }
+          </style>
+        </head>
+        <body>
+          ${printContent.innerHTML}
+          <script>
+            window.onload = function() {
+              window.print();
+              window.close();
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -80,20 +134,30 @@ export default function CheckoutModal({
                 </p>
                 <div className="space-y-1.5">
                   {invoiceItems.length > 0 ? (
-                    invoiceItems.map((item) => (
-                      <div
-                        key={item.product}
-                        className="flex justify-between items-center text-xs bg-slate-900/40 p-2.5 rounded border border-slate-800/60"
-                      >
-                        <span className="text-slate-200 truncate w-3/5">
-                          {item.name} (x{item.quantity})
-                        </span>
-                        <span className="font-semibold text-emerald-400">
-                          {(item.price * item.quantity).toLocaleString("vi-VN")}{" "}
-                          đ
-                        </span>
-                      </div>
-                    ))
+                    invoiceItems.map((item) => {
+                      const pId = item.product?._id || item.product;
+                      return (
+                        <div
+                          key={pId}
+                          className="flex justify-between items-center text-xs bg-slate-900/40 p-2.5 rounded border border-slate-800/60"
+                        >
+                          <span className="text-slate-200 truncate w-3/5">
+                            {item.name} (x{item.quantity}){" "}
+                            {item.isPaid && (
+                              <span className="text-emerald-400 text-[10px]">
+                                (Đã trả lẻ)
+                              </span>
+                            )}
+                          </span>
+                          <span className="font-semibold text-emerald-400">
+                            {(item.price * item.quantity).toLocaleString(
+                              "vi-VN",
+                            )}{" "}
+                            đ
+                          </span>
+                        </div>
+                      );
+                    })
                   ) : (
                     <p className="text-[11px] text-slate-500 italic">
                       Không có dịch vụ phát sinh.
@@ -111,11 +175,23 @@ export default function CheckoutModal({
                 </span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Tiền hàng phát sinh:</span>
+                <span>Tổng tiền hàng phát sinh:</span>
                 <span className="text-slate-200">
                   {productsTotal.toLocaleString("vi-VN")} đ
                 </span>
               </div>
+              {paidItemsAmount > 0 && (
+                <div className="flex justify-between text-amber-400">
+                  <span>Đã thanh toán lẻ các món trước:</span>
+                  <span>-{paidItemsAmount.toLocaleString("vi-VN")} đ</span>
+                </div>
+              )}
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-400 font-medium">
+                  <span>Giảm giá Voucher ({appliedVoucher?.code}):</span>
+                  <span>-{discountAmount.toLocaleString("vi-VN")} đ</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-400">
                 <span>Đã cọc trước:</span>
                 <span className="text-emerald-400">
@@ -123,7 +199,7 @@ export default function CheckoutModal({
                 </span>
               </div>
               <div className="flex justify-between font-bold text-sm text-white pt-2 border-t border-slate-700/60">
-                <span>Tổng tiền cần trả:</span>
+                <span>Tổng tiền còn lại cần trả:</span>
                 <span className="text-emerald-400 text-base">
                   {remainingAmount.toLocaleString("vi-VN")} đ
                 </span>
@@ -150,7 +226,6 @@ export default function CheckoutModal({
               </p>
             </div>
 
-            {/* Các nút hành động thanh toán (Chỉ còn Tiền mặt và Chuyển khoản) */}
             <div className="w-full space-y-2 mt-4">
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -167,6 +242,14 @@ export default function CheckoutModal({
                 </button>
               </div>
 
+              {/* Nút In hóa đơn */}
+              <button
+                onClick={handlePrintReceipt}
+                className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-medium transition-all text-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-md"
+              >
+                <Printer size={15} /> In Hóa Đơn
+              </button>
+
               <button
                 onClick={onClose}
                 className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl font-medium transition-all text-xs cursor-pointer"
@@ -174,6 +257,176 @@ export default function CheckoutModal({
                 Đóng
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MẪU KHUNG HÓA ĐƠN NHIỆT ẨN DÙNG ĐỂ IN */}
+      <div style={{ display: "none" }}>
+        <div ref={printRef}>
+          <div className="text-center font-bold" style={{ fontSize: "14px" }}>
+            HỆ THỐNG SÂN CẦU LÔNG
+          </div>
+          <div className="text-center" style={{ fontSize: "11px" }}>
+            ĐC: Số 123 Đường Cầu Lông, TP.HCM
+          </div>
+          <div className="text-center" style={{ fontSize: "11px" }}>
+            Hotline: 0909.xxx.xxx
+          </div>
+          <div className="border-b mt-2"></div>
+
+          <div
+            className="text-center font-bold"
+            style={{ fontSize: "13px", margin: "8px 0" }}
+          >
+            PHIẾU THANH TOÁN
+          </div>
+
+          <div>Ngày: {new Date().toLocaleDateString("vi-VN")}</div>
+          <div>Khách hàng: {customerName}</div>
+          <div>Sân: {courtName}</div>
+          <div>
+            Giờ chơi: {actualStartTime} - {actualEndTime}
+          </div>
+          <div>
+            Thu ngân:{" "}
+            {JSON.parse(localStorage.getItem("adminUser") || "{}").name ||
+              "Thu ngân"}
+          </div>
+          <div className="border-b mt-2"></div>
+
+          <table>
+            <thead>
+              <tr className="border-b">
+                <th>Nội dung</th>
+                <th className="text-center">SL</th>
+                <th className="text-right">Tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Tiền sân ({courtName})</td>
+                <td className="text-center">1</td>
+                <td className="text-right">
+                  {totalCourtFee.toLocaleString("vi-VN")}đ
+                </td>
+              </tr>
+              {invoiceItems.map((item, idx) => {
+                const itemTotal = item.price * item.quantity;
+                return (
+                  <tr key={idx}>
+                    <td>
+                      <span
+                        style={
+                          item.isPaid
+                            ? { textDecoration: "line-through", color: "#666" }
+                            : {}
+                        }
+                      >
+                        {item.name}
+                      </span>
+                      {item.isPaid && (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontStyle: "italic",
+                            display: "block",
+                            color: "#666",
+                          }}
+                        >
+                          (Đã trả lẻ)
+                        </span>
+                      )}
+                    </td>
+                    <td
+                      className="text-center"
+                      style={
+                        item.isPaid
+                          ? { color: "#666", textDecoration: "line-through" }
+                          : {}
+                      }
+                    >
+                      {item.quantity}
+                    </td>
+                    <td
+                      className="text-right"
+                      style={
+                        item.isPaid
+                          ? { textDecoration: "line-through", color: "#666" }
+                          : {}
+                      }
+                    >
+                      {itemTotal.toLocaleString("vi-VN")}đ
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="border-b mt-2"></div>
+
+          <div className="flex">
+            <span>Tiền sân:</span>
+            <span>{totalCourtFee.toLocaleString("vi-VN")}đ</span>
+          </div>
+          <div className="flex">
+            <span>Tổng tiền hàng phát sinh:</span>
+            <span>{productsTotal.toLocaleString("vi-VN")}đ</span>
+          </div>
+          {paidItemsAmount > 0 && (
+            <div className="flex" style={{ color: "#333" }}>
+              <span>Đã trả lẻ các món trước:</span>
+              <span>-{paidItemsAmount.toLocaleString("vi-VN")}đ</span>
+            </div>
+          )}
+          {depositPaid > 0 && (
+            <div className="flex">
+              <span>Đã cọc trước:</span>
+              <span>-{depositPaid.toLocaleString("vi-VN")}đ</span>
+            </div>
+          )}
+          {discountAmount > 0 && (
+            <div className="flex">
+              <span>Giảm giá voucher:</span>
+              <span>-{discountAmount.toLocaleString("vi-VN")}đ</span>
+            </div>
+          )}
+          <div className="border-b mt-2"></div>
+
+          <div className="flex font-bold" style={{ fontSize: "13px" }}>
+            <span>THANH TOÁN CUỐI GIỜ:</span>
+            <span>{remainingAmount.toLocaleString("vi-VN")}đ</span>
+          </div>
+          <div className="border-b mt-2"></div>
+
+          {/* MÃ QR THANH TOÁN TRÊN HÓA ĐƠN IN */}
+          <div className="text-center mt-3">
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: "bold",
+                marginBottom: "4px",
+              }}
+            >
+              QUÉT MÃ QR ĐỂ THANH TOÁN
+            </div>
+            <img
+              src={`https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.jpg?amount=${remainingAmount}&addInfo=${encodedAddInfo}&accountName=${encodedAccountName}`}
+              alt="QR Code"
+              style={{
+                width: "120px",
+                height: "120px",
+                margin: "0 auto",
+                display: "block",
+              }}
+            />
+            {/* <div style={{ fontSize: "8px", marginTop: "2px" }}>
+              Nội dung: {addInfoText}
+            </div> */}
+          </div>
+
+          <div className="text-center mt-3" style={{ fontSize: "11px" }}>
+            Cảm ơn quý khách và hẹn gặp lại!
           </div>
         </div>
       </div>

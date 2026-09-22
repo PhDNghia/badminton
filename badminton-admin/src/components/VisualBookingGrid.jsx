@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Calendar as CalendarIcon,
 } from "lucide-react";
+import API from "../services/api";
 
 const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
   // Lấy ngày hôm nay định dạng YYYY-MM-DD
@@ -22,10 +23,8 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
   const fetchBookingsByDate = async () => {
     try {
       setLoading(true);
-      // Gọi API lấy lịch theo ngày (Đảm bảo backend có API route này hoặc lọc từ getAll)
-      const res = await axios.get(
-        `http://localhost:5000/api/bookings?date=${selectedDate}`,
-      );
+      // Sử dụng instance API thay vì axios gọi cứng URL
+      const res = await API.get(`/bookings?date=${selectedDate}`);
       setBookings(res.data.data || res.data);
     } catch (error) {
       console.error("Lỗi tải lịch đặt:", error);
