@@ -2,7 +2,9 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import http from "http";
 import connectDB from "./config/DbConfig.js";
+import { Server } from "socket.io";
 
 // Import Routes
 import productRouter from "./routes/ProductRoutes.js";
@@ -20,8 +22,18 @@ connectDB(); // Kết nối MongoDB
 
 const app = express();
 
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
 app.use(express.json());
 app.use(cors());
+
+app.set("io", io);
 
 // Gắn các API Routes vào đường dẫn chính
 app.use("/api/courts", courtRouter);
@@ -39,6 +51,6 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server đang chạy trên cổng ${PORT}`);
 });

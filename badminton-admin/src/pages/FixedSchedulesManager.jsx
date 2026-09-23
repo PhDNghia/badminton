@@ -1,7 +1,15 @@
-// badminton-admin/src/pages/FixedSchedulesManager.jsx
 import { useState, useEffect } from "react";
 import API from "../services/api";
-import { Plus, Trash2, Edit, User, MapPin, X } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit,
+  User,
+  MapPin,
+  X,
+  Repeat,
+  AlertTriangle,
+} from "lucide-react";
 import { toast } from "react-toastify";
 
 export default function FixedSchedulesManager() {
@@ -94,7 +102,6 @@ export default function FixedSchedulesManager() {
     return total;
   };
 
-  // Tính tiền cho modal Thêm mới
   useEffect(() => {
     const sessionPrice = calculateSessionPrice(startTime, endTime);
     setPricePerSession(sessionPrice);
@@ -117,7 +124,6 @@ export default function FixedSchedulesManager() {
     }
   }, [startTime, endTime, startDate, endDate, selectedDays]);
 
-  // Tính tiền cho modal Sửa khi thay đổi thông tin bên trong modal
   useEffect(() => {
     const sessionPrice = calculateSessionPrice(editStartTime, editEndTime);
     setEditPricePerSession(sessionPrice);
@@ -206,14 +212,12 @@ export default function FixedSchedulesManager() {
     }
   };
 
-  // Mở modal sửa và xử lý chuẩn hóa dữ liệu ngày + thứ lặp lại từ database
   const handleOpenEdit = (item) => {
     setEditingId(item._id);
 
     const cId = item.court?._id || item.court || "";
     setEditCourtId(cId);
 
-    // Hỗ trợ đọc cả 2 dạng: mảng daysOfWeek hoặc dạng đơn dayOfWeek từ database cũ
     let days = [1];
     if (Array.isArray(item.daysOfWeek) && item.daysOfWeek.length > 0) {
       days = item.daysOfWeek.map((d) => Number(d));
@@ -235,7 +239,6 @@ export default function FixedSchedulesManager() {
     setEditDepositAmount(item.depositAmount || 0);
     setEditCustomerInfo(item.user?.name || item.guestName || "Khách lẻ");
 
-    // Tính trực tiếp số buổi và tổng tiền ngay khi mở modal
     const sessionPrice = calculateSessionPrice(sTime, eTime);
     setEditPricePerSession(sessionPrice);
 
@@ -300,7 +303,7 @@ export default function FixedSchedulesManager() {
           const res = await API.delete(apiEndpoint);
           if (res.data.success) {
             toast.success("Đã xóa lịch cố định thành công!");
-            fetchData(); // hoặc hàm load lại dữ liệu của anh
+            fetchData();
           }
         } catch (error) {
           toast.error("Lỗi thực hiện thao tác!");
@@ -324,41 +327,148 @@ export default function FixedSchedulesManager() {
   };
 
   return (
-    <div className="pb-12 text-slate-100">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <span>🔁 Quản Lý Lịch Đặt Cố Định (Dài Hạn)</span>
-        </h1>
+    <div className="w-full min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative transition-colors duration-200">
+      {/* HEADER TỔNG QUAN */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+            <Repeat className="text-emerald-600" size={24} /> Quản Lý Lịch Đặt
+            Cố Định (Dài Hạn)
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Thiết lập chuỗi lịch lặp lại hàng tuần và quản lý các gói đặt sân
+            dài hạn
+          </p>
+        </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-md"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-medium shadow-xs transition flex items-center gap-2 cursor-pointer self-start md:self-auto"
         >
-          <Plus size={20} /> Tạo Gói Lịch Cố Định Mới
+          <Plus size={16} /> Tạo Gói Lịch Cố Định Mới
         </button>
+      </div>
+
+      {/* DANH SÁCH LỊCH CỐ ĐỊNH */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="p-5 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Danh Sách Các Gói Cố Định ({schedules.length})
+          </h2>
+        </div>
+
+        {schedules.length === 0 ? (
+          <div className="text-center py-10 text-slate-400 dark:text-slate-500 italic text-xs">
+            Chưa có gói lịch cố định nào.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
+                  <th className="p-3.5">Khách hàng</th>
+                  <th className="p-3.5">Sân</th>
+                  <th className="p-3.5">Lịch lặp hàng tuần</th>
+                  <th className="p-3.5">Khoảng thời gian</th>
+                  <th className="p-3.5">Giá / Buổi</th>
+                  <th className="p-3.5 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {schedules.map((item) => (
+                  <tr
+                    key={item._id}
+                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition"
+                  >
+                    <td className="p-3.5 font-semibold">
+                      <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                        <User size={15} className="text-emerald-500 shrink-0" />
+                        <span className="font-bold">
+                          {item.user?.name || item.guestName || "Khách lẻ"}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 dark:text-slate-400 font-normal pl-5 mt-0.5 font-mono">
+                        {item.user?.phone || item.guestPhone || "N/A"}
+                      </div>
+                    </td>
+                    <td className="p-3.5">
+                      <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <MapPin size={15} className="shrink-0" />
+                        {item.court?.name || "Sân"}
+                      </div>
+                    </td>
+                    <td className="p-3.5 font-medium text-slate-700 dark:text-slate-300">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                        {item.daysOfWeek &&
+                        Array.isArray(item.daysOfWeek) &&
+                        item.daysOfWeek.length > 0
+                          ? item.daysOfWeek
+                              .map((d) => (d === 0 ? "CN" : `Thứ ${d + 1}`))
+                              .join(", ")
+                          : item.dayOfWeek !== undefined
+                            ? `Thứ ${item.dayOfWeek + 1}`
+                            : "N/A"}
+                      </span>{" "}
+                      <span className="text-slate-400 font-mono text-[11px]">
+                        ({item.startTime} - {item.endTime})
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-slate-500 dark:text-slate-400 text-[11px]">
+                      {item.startDate} ➔ {item.endDate}
+                    </td>
+                    <td className="p-3.5 font-bold text-amber-600 dark:text-amber-400">
+                      {item.totalPricePerSession?.toLocaleString()} đ
+                    </td>
+                    <td className="p-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleOpenEdit(item)}
+                          className="p-1.5 text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
+                          title="Sửa gói"
+                        >
+                          <Edit size={15} />
+                        </button>
+
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleDelete(item._id)}
+                            className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
+                            title="Xóa gói"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* MODAL THÊM MỚI */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 p-6 rounded-2xl max-w-xl w-full shadow-2xl border border-slate-800 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
-              <h3 className="text-lg font-bold">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-800 dark:text-white">
                 Tạo Chuỗi Lịch Cố Định Hàng Tuần
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             <form
               onSubmit={handleCreateFixed}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm"
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs"
             >
               <div className="md:col-span-2">
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer font-medium">
+                <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300 cursor-pointer font-medium">
                   <input
                     type="checkbox"
                     checked={isGuest}
@@ -370,52 +480,70 @@ export default function FixedSchedulesManager() {
                         setGuestPhone("");
                       }
                     }}
-                    className="w-4 h-4 text-emerald-600 rounded border-slate-700 cursor-pointer"
+                    className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
                   />
                   Khách vãng lai
                 </label>
               </div>
 
-              <select
-                value={courtId}
-                onChange={(e) => setCourtId(e.target.value)}
-                required
-                className="p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none md:col-span-2"
-              >
-                <option value="">-- Chọn sân --</option>
-                {courts.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name} ({c.type})
-                  </option>
-                ))}
-              </select>
+              <div className="md:col-span-2">
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Chọn sân
+                </label>
+                <select
+                  value={courtId}
+                  onChange={(e) => setCourtId(e.target.value)}
+                  required
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
+                >
+                  <option value="">-- Chọn sân --</option>
+                  {courts.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name} ({c.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {isGuest ? (
                 <>
-                  <input
-                    type="text"
-                    placeholder="Họ tên khách"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    required
-                    className="p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Số điện thoại"
-                    value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                    required
-                    className="p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
-                  />
+                  <div>
+                    <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                      Họ tên khách
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Nhập họ tên"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      required
+                      className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Nhập số điện thoại"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      required
+                      className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    />
+                  </div>
                 </>
               ) : (
                 <div className="md:col-span-2">
+                  <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                    Thành viên hệ thống
+                  </label>
                   <select
                     value={userId}
                     onChange={(e) => setUserId(e.target.value)}
                     required
-                    className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
+                    className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
                   >
                     <option value="">-- Chọn thành viên có sẵn --</option>
                     {users.map((u) => (
@@ -428,10 +556,10 @@ export default function FixedSchedulesManager() {
               )}
 
               <div className="md:col-span-2">
-                <label className="text-xs text-slate-400 mb-1.5 block font-medium">
+                <label className="text-xs text-slate-500 dark:text-slate-400 mb-1.5 block font-medium">
                   Chọn các ngày lặp lại trong tuần:
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {[
                     { id: 1, label: "Thứ 2" },
                     { id: 2, label: "Thứ 3" },
@@ -447,10 +575,10 @@ export default function FixedSchedulesManager() {
                         type="button"
                         key={item.id}
                         onClick={() => handleToggleDay(item.id, false)}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer border ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
                           isChecked
-                            ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
-                            : "bg-slate-800 text-slate-300 border-slate-700 hover:border-emerald-500"
+                            ? "bg-emerald-600 text-white border-emerald-500 shadow-xs"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500"
                         }`}
                       >
                         {item.label}
@@ -461,110 +589,108 @@ export default function FixedSchedulesManager() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Giờ bắt đầu:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Giờ bắt đầu
                 </label>
                 <input
                   type="text"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:border-emerald-500 transition font-mono"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Giờ kết thúc:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Giờ kết thúc
                 </label>
                 <input
                   type="text"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:border-emerald-500 transition font-mono"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Từ ngày:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Từ ngày
                 </label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
-                  style={{ colorScheme: "dark" }}
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Đến ngày:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Đến ngày
                 </label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
-                  style={{ colorScheme: "dark" }}
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Giá mỗi buổi:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Giá mỗi buổi
                 </label>
                 <input
                   type="text"
                   value={`${pricePerSession.toLocaleString()} đ`}
                   disabled
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800/50 text-emerald-400 font-bold outline-none cursor-not-allowed"
+                  className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-100 dark:bg-slate-800/50 text-emerald-600 dark:text-emerald-400 font-bold p-2.5 outline-none cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Tổng tiền ({totalSessions} buổi):
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Tổng tiền ({totalSessions} buổi)
                 </label>
                 <input
                   type="text"
                   value={`${totalPackagePrice.toLocaleString()} đ`}
                   disabled
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800/50 text-amber-400 font-bold outline-none cursor-not-allowed"
+                  className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-100 dark:bg-slate-800/50 text-amber-600 dark:text-amber-400 font-bold p-2.5 outline-none cursor-not-allowed"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Tiền cọc tổng gói (VNĐ):
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Tiền cọc tổng gói (VNĐ)
                 </label>
                 <input
                   type="number"
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none font-medium"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 />
               </div>
 
-              <div className="md:col-span-2 flex justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2.5 bg-slate-800 text-slate-200 rounded-xl font-medium cursor-pointer"
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition font-medium"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-md cursor-pointer"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-xs cursor-pointer transition"
                 >
-                  {loading ? "Đang xử lý..." : "Xác Nhận Tạo Lịch Cố Định"}
+                  {loading ? "Đang xử lý..." : "Xác Nhận Tạo Lịch"}
                 </button>
               </div>
             </form>
@@ -575,45 +701,53 @@ export default function FixedSchedulesManager() {
       {/* MODAL SỬA LỊCH CỐ ĐỊNH */}
       {editModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 p-6 rounded-2xl max-w-xl w-full shadow-2xl border border-slate-800 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl max-w-xl w-full shadow-2xl max-h-[90vh] overflow-y-auto text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-lg font-bold">Chỉnh Sửa Lịch Cố Định</h3>
-                <p className="text-xs text-emerald-400 mt-0.5">
-                  Khách hàng: <b>{editCustomerInfo}</b> (Giữ nguyên)
+                <h3 className="text-base font-bold text-slate-800 dark:text-white">
+                  Chỉnh Sửa Lịch Cố Định
+                </h3>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5 font-medium">
+                  Khách hàng:{" "}
+                  <span className="font-bold">{editCustomerInfo}</span>
                 </p>
               </div>
               <button
                 onClick={() => setEditModalOpen(false)}
-                className="text-slate-400 hover:text-white cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             <form
               onSubmit={handleUpdateFixed}
-              className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm"
+              className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs"
             >
-              <select
-                value={editCourtId}
-                onChange={(e) => setEditCourtId(e.target.value)}
-                required
-                className="p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none md:col-span-2"
-              >
-                <option value="">-- Chọn sân --</option>
-                {courts.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name} ({c.type})
-                  </option>
-                ))}
-              </select>
+              <div className="md:col-span-2">
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Chọn sân
+                </label>
+                <select
+                  value={editCourtId}
+                  onChange={(e) => setEditCourtId(e.target.value)}
+                  required
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
+                >
+                  <option value="">-- Chọn sân --</option>
+                  {courts.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name} ({c.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div className="md:col-span-2">
-                <label className="text-xs text-slate-400 mb-1.5 block font-medium">
+                <label className="text-xs text-slate-500 dark:text-slate-400 mb-1.5 block font-medium">
                   Chọn các ngày lặp lại trong tuần:
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {[
                     { id: 1, label: "Thứ 2" },
                     { id: 2, label: "Thứ 3" },
@@ -629,10 +763,10 @@ export default function FixedSchedulesManager() {
                         type="button"
                         key={item.id}
                         onClick={() => handleToggleDay(item.id, true)}
-                        className={`px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer border ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
                           isChecked
-                            ? "bg-blue-600 text-white border-blue-500 shadow-sm"
-                            : "bg-slate-800 text-slate-300 border-slate-700 hover:border-blue-500"
+                            ? "bg-emerald-600 text-white border-emerald-500 shadow-xs"
+                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-emerald-500"
                         }`}
                       >
                         {item.label}
@@ -643,108 +777,106 @@ export default function FixedSchedulesManager() {
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Giờ bắt đầu:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Giờ bắt đầu
                 </label>
                 <input
                   type="text"
                   value={editStartTime}
                   onChange={(e) => setEditStartTime(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:border-emerald-500 transition font-mono"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Giờ kết thúc:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Giờ kết thúc
                 </label>
                 <input
                   type="text"
                   value={editEndTime}
                   onChange={(e) => setEditEndTime(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:border-emerald-500 transition font-mono"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Từ ngày:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Từ ngày
                 </label>
                 <input
                   type="date"
                   value={editStartDate}
                   onChange={(e) => setEditStartDate(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
-                  style={{ colorScheme: "dark" }}
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Đến ngày:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Đến ngày
                 </label>
                 <input
                   type="date"
                   value={editEndDate}
                   onChange={(e) => setEditEndDate(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none"
-                  style={{ colorScheme: "dark" }}
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Giá mỗi buổi:
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Giá mỗi buổi
                 </label>
                 <input
                   type="text"
                   value={`${editPricePerSession.toLocaleString()} đ`}
                   disabled
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800/50 text-blue-400 font-bold outline-none cursor-not-allowed"
+                  className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-100 dark:bg-slate-800/50 text-emerald-600 dark:text-emerald-400 font-bold p-2.5 outline-none cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Tổng tiền ({editTotalSessions} buổi):
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Tổng tiền ({editTotalSessions} buổi)
                 </label>
                 <input
                   type="text"
                   value={`${editTotalPackagePrice.toLocaleString()} đ`}
                   disabled
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800/50 text-amber-400 font-bold outline-none cursor-not-allowed"
+                  className="w-full border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-100 dark:bg-slate-800/50 text-amber-600 dark:text-amber-400 font-bold p-2.5 outline-none cursor-not-allowed"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-xs text-slate-400 mb-1 block">
-                  Tiền cọc tổng gói (VNĐ):
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  Tiền cọc tổng gói (VNĐ)
                 </label>
                 <input
                   type="number"
                   value={editDepositAmount}
                   onChange={(e) => setEditDepositAmount(e.target.value)}
                   required
-                  className="w-full p-3 border border-slate-700 rounded-xl bg-slate-800 text-white outline-none font-medium"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 />
               </div>
 
-              <div className="md:col-span-2 flex justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="md:col-span-2 flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(false)}
-                  className="px-4 py-2.5 bg-slate-800 text-slate-200 rounded-xl font-medium cursor-pointer"
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition font-medium"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-md cursor-pointer"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-xs cursor-pointer transition"
                 >
                   {loading ? "Đang lưu..." : "Lưu Thay Đổi"}
                 </button>
@@ -754,149 +886,45 @@ export default function FixedSchedulesManager() {
         </div>
       )}
 
-      {/* DANH SÁCH LỊCH CỐ ĐỊNH */}
-      <div className="bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-800">
-        <h2 className="text-xl font-semibold mb-4">
-          Danh Sách Các Gói Cố Định ({schedules.length})
-        </h2>
-        {schedules.length === 0 ? (
-          <p className="text-slate-400 italic py-4">
-            Chưa có gói lịch cố định nào.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400 text-sm">
-                  <th className="p-3">Khách hàng</th>
-                  <th className="p-3">Sân</th>
-                  <th className="p-3">Lịch lặp hàng tuần</th>
-                  <th className="p-3">Khoảng thời gian</th>
-                  <th className="p-3">Giá / Buổi</th>
-                  <th className="p-3 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300 text-sm">
-                {schedules.map((item) => (
-                  <tr
-                    key={item._id}
-                    className="hover:bg-slate-800/50 transition"
-                  >
-                    <td className="p-3 font-semibold">
-                      <div className="flex items-center gap-2">
-                        <User size={16} className="text-emerald-500" />
-                        <span>
-                          {item.user?.name || item.guestName || "Khách lẻ"}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-400 font-normal pl-6">
-                        {item.user?.phone || item.guestPhone || "N/A"}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5 text-blue-400 font-medium">
-                        <MapPin size={16} />
-                        {item.court?.name || "Sân"}
-                      </div>
-                    </td>
-                    <td className="p-3 font-medium text-emerald-400">
-                      {item.daysOfWeek &&
-                      Array.isArray(item.daysOfWeek) &&
-                      item.daysOfWeek.length > 0
-                        ? item.daysOfWeek
-                            .map((d) => (d === 0 ? "CN" : `Thứ ${d + 1}`))
-                            .join(", ")
-                        : item.dayOfWeek !== undefined
-                          ? `Thứ ${item.dayOfWeek + 1}`
-                          : "N/A"}{" "}
-                      ({item.startTime} - {item.endTime})
-                    </td>
-                    <td className="p-3 text-xs">
-                      Từ {item.startDate} <br /> đến {item.endDate}
-                    </td>
-                    <td className="p-3 font-bold text-white">
-                      {item.totalPricePerSession?.toLocaleString()} đ
-                    </td>
-                    <td className="p-3 text-right flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => handleOpenEdit(item)}
-                        className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer"
-                        title="Sửa gói"
-                      >
-                        <Edit size={15} />
-                      </button>
-
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleDelete(item._id)}
-                          className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
-                          title="Xóa gói"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {confirmModal.show && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-            <div className="bg-[#121829] border border-slate-800 p-6 rounded-2xl max-w-md w-full shadow-2xl text-slate-100">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 shrink-0">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-lg font-bold text-white">
-                  {confirmModal.title}
-                </h3>
-              </div>
-              <p className="text-sm text-slate-300 mb-6 pl-13">
-                {confirmModal.message}
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setConfirmModal({
-                      show: false,
-                      title: "",
-                      message: "",
-                      onConfirm: null,
-                    })
-                  }
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-medium cursor-pointer text-sm transition"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmModal.onConfirm}
-                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold shadow-md cursor-pointer text-sm transition"
-                >
-                  Xác nhận
-                </button>
-              </div>
+      {/* MODAL XÁC NHẬN XÓA */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-200 dark:border-slate-800 text-center animate-in fade-in zoom-in duration-200">
+            <div className="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-500 flex items-center justify-center mx-auto mb-4 border border-amber-100 dark:border-amber-900/40">
+              <AlertTriangle size={24} />
+            </div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-white mb-2">
+              {confirmModal.title}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              {confirmModal.message}
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setConfirmModal({
+                    show: false,
+                    title: "",
+                    message: "",
+                    onConfirm: null,
+                  })
+                }
+                className="flex-1 px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 font-medium text-xs transition cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={confirmModal.onConfirm}
+                className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 font-medium text-xs shadow-xs transition cursor-pointer"
+              >
+                Xác nhận
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

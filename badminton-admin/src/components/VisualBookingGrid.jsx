@@ -1,29 +1,20 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { toast } from "react-toastify";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Calendar as CalendarIcon,
-} from "lucide-react";
+import { Calendar as CalendarIcon } from "lucide-react";
 import API from "../services/api";
 
 const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
-  // Lấy ngày hôm nay định dạng YYYY-MM-DD
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
   );
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Danh sách các khung giờ cố định từ 6:00 sáng đến 23:00 đêm
-  const hours = Array.from({ length: 18 }, (_, i) => i + 6); // [6, 7, ..., 23]
+  const hours = Array.from({ length: 18 }, (_, i) => i + 6);
 
-  // Fetch danh sách lịch đặt trong ngày được chọn
   const fetchBookingsByDate = async () => {
     try {
       setLoading(true);
-      // Sử dụng instance API thay vì axios gọi cứng URL
       const res = await API.get(`/bookings?date=${selectedDate}`);
       setBookings(res.data.data || res.data);
     } catch (error) {
@@ -38,53 +29,47 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
     fetchBookingsByDate();
   }, [selectedDate]);
 
-  // Hàm kiểm tra trạng thái của một ô (Sân X vào Giờ Y)
   const getSlotStatus = (courtId, hour) => {
-    // Tìm booking nào khớp với sân và chứa khung giờ này
     const booking = bookings.find((b) => {
       const bCourtId = b.courtId?._id || b.courtId;
       if (bCourtId !== courtId) return false;
 
-      // Kiểm tra ngày
       const bDate = new Date(b.date).toISOString().split("T")[0];
       if (bDate !== selectedDate) return false;
 
-      // Kiểm tra giờ bắt đầu và kết thúc
       const startHour = parseInt(b.startTime.split(":")[0]);
       const endHour = parseInt(b.endTime.split(":")[0]);
 
       return hour >= startHour && hour < endHour;
     });
 
-    if (!booking) return { status: "empty" }; // Trống
-    return { status: booking.status, booking }; // Đã đặt, đang cọc, đang đánh...
+    if (!booking) return { status: "empty" };
+    return { status: booking.status, booking };
   };
 
-  // Màu sắc tương ứng với trạng thái ô lịch
   const getSlotColor = (status) => {
     switch (status) {
       case "pending":
       case "Pending":
       case "pending_deposit":
       case "Pending_Deposit":
-        return "bg-amber-400 hover:bg-amber-500 text-white"; // Đang chờ cọc (Vàng)
+        return "bg-amber-400 hover:bg-amber-500 text-white";
       case "confirmed":
       case "Confirmed":
-        return "bg-blue-500 hover:bg-blue-600 text-white"; // Đã xác nhận / cọc (Xanh dương)
+        return "bg-blue-500 hover:bg-blue-600 text-white";
       case "checked_in":
       case "Checked_In":
-        return "bg-emerald-500 hover:bg-emerald-600 text-white"; // Đang đánh (Xanh lá)
+        return "bg-emerald-500 hover:bg-emerald-600 text-white";
       case "completed":
       case "Completed":
-        return "bg-slate-400 text-white"; // Hoàn thành (Xám)
+        return "bg-slate-400 text-white";
       default:
-        return "bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700"; // Trống
+        return "bg-white dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700";
     }
   };
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-8">
-      {/* Header chọn ngày & Chú thích trạng thái */}
       <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-4 bg-slate-50 dark:bg-slate-900/50">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -102,7 +87,6 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
           </div>
         </div>
 
-        {/* Chú thích màu sắc (Legend) */}
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 dark:text-slate-300 font-medium">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-white border border-slate-300"></span>{" "}
@@ -126,7 +110,6 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
         </div>
       </div>
 
-      {/* Grid Timeline Bảng Sân */}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse min-w-[900px]">
           <thead>
@@ -150,7 +133,6 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
                 key={court._id}
                 className="border-b border-slate-200 dark:border-slate-800"
               >
-                {/* Tên sân bên trái */}
                 <td className="p-3 font-semibold text-sm text-slate-800 dark:text-white border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-sm">
                   {court.name}
                   <div className="text-[10px] text-slate-400 font-normal">
@@ -158,14 +140,12 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
                   </div>
                 </td>
 
-                {/* Các ô giờ từ 6h đến 23h */}
                 {hours.map((h) => {
                   const { status, booking } = getSlotStatus(court._id, h);
                   return (
                     <td
                       key={h}
                       onClick={() => {
-                        // Nếu ô trống, gọi modal mở form đặt lịch thủ công với sẵn Sân và Giờ đó
                         if (status === "empty") {
                           onOpenBookingModal({
                             courtId: court._id,
@@ -173,7 +153,6 @@ const VisualBookingGrid = ({ courts, onOpenBookingModal }) => {
                             hour: h,
                           });
                         } else {
-                          // Nếu có lịch rồi, có thể mở modal xem chi tiết/check-in/POS
                           toast.info(
                             `Sân này đã có lịch đặt bởi: ${booking?.userId?.name || booking?.guestName || "Khách"}`,
                           );

@@ -13,23 +13,19 @@ export const createBooking = async (req, res) => {
       startTime,
       endTime,
       totalPrice,
-      depositAmount: initialDeposit, // Đổi tên biến nhận vào
+      depositAmount,
       guestName,
       guestPhone,
       user: requestedUserId,
     } = req.body;
 
-    let depositAmount = Number(initialDeposit) || 0; // Khai báo dùng let để có thể gán lại giá trị
     let userId = null;
     let finalGuestName = "";
     let finalGuestPhone = "";
 
-    // 1. Nếu Admin chọn sẵn một thành viên cụ thể từ danh sách dropdown
     if (requestedUserId) {
       userId = requestedUserId;
-    }
-    // 2. NẾU CÓ NHẬP SỐ ĐIỆN THOẠI VÃNG LAI: Ưu tiên xử lý vãng lai, BỎ QUA token của admin đang đăng nhập
-    else if (guestPhone && guestPhone.trim() !== "") {
+    } else if (guestPhone && guestPhone.trim() !== "") {
       let existingUser = await UserModel.findOne({ phone: guestPhone });
 
       if (!existingUser) {
@@ -47,26 +43,19 @@ export const createBooking = async (req, res) => {
       userId = existingUser._id;
       finalGuestName = guestName;
       finalGuestPhone = guestPhone;
-    }
-    // 3. Trường hợp khách hàng tự đặt lịch qua app (không phải admin thao tác)
-    else if (req.user && req.user.role !== "admin") {
+    } else if (
+      req.user &&
+      req.user.role !== "admin" &&
+      req.user.role !== "staff"
+    ) {
       userId = req.user.id;
     }
 
-    // Nếu không có user và không có guestPhone thì báo lỗi
     if (!userId && (!guestName || !guestPhone)) {
       return res.status(400).json({
         success: false,
         message: "Vui lòng nhập họ tên và số điện thoại của khách vãng lai!",
       });
-    }
-
-    // Kiểm tra cờ bắt buộc cọc do bùng sân
-    if (userId) {
-      const userRecord = await UserModel.findById(userId);
-      if (userRecord && userRecord.isRequireDeposit) {
-        depositAmount = totalPrice; // Ép cọc 100% nếu tài khoản này từng bùng sân nhiều lần
-      }
     }
 
     const newBooking = new BookingModel({
@@ -89,9 +78,17 @@ export const createBooking = async (req, res) => {
       .populate("court", "name type")
       .populate("user", "name phone email");
 
+    // ✅ CHỈ BẮN SOCKET KHI KHÔNG PHẢI ADMIN HOẶC STAFF TẠO
+    if (req.user?.role !== "admin" && req.user?.role !== "staff") {
+      const io = req.app.get("io");
+      if (io) {
+        io.emit("NEW_BOOKING_ALERT", populatedBooking);
+      }
+    }
+
     res.status(201).json({
       success: true,
-      message: "Đặt lịch thành công và đã tự động lưu thông tin khách hàng!",
+      message: "Đặt lịch thành công!",
       data: populatedBooking,
     });
   } catch (error) {

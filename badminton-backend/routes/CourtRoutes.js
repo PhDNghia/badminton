@@ -9,7 +9,7 @@ import {
 import {
   verifyAdminOrStaff,
   verifyToken,
-} from "../middlewares/AuthMiddlerware.js";
+} from "../middlewares/AuthMiddleware.js";
 
 const courtRouter = express.Router();
 

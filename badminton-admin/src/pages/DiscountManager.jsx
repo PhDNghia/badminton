@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import API from "../services/api";
 import { toast } from "react-toastify";
-import { AlertCircle, Trash2, Edit, Plus } from "lucide-react";
+import { AlertTriangle, Trash2, Edit, Plus, Ticket } from "lucide-react";
 
 export default function DiscountsManager() {
   const [discounts, setDiscounts] = useState([]);
@@ -16,7 +16,7 @@ export default function DiscountsManager() {
     code: "",
     discountType: "percentage",
     discountValue: "",
-    maxDiscountValue: "", // Thêm trường giới hạn giảm tối đa
+    maxDiscountValue: "", // Giới hạn giảm tối đa
     minOrderValue: "",
     startDate: "",
     endDate: "",
@@ -102,11 +102,20 @@ export default function DiscountsManager() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 dark:bg-slate-950 min-h-screen text-gray-800 dark:text-gray-100 transition-colors">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          🎟️ Quản Lý Mã Giảm Giá & Khuyến Mãi
-        </h1>
+    <div className="w-full min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative transition-colors duration-200">
+      {/* HEADER TỔNG QUAN */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+            <Ticket className="text-emerald-600" size={24} /> Quản Lý Mã Giảm
+            Giá & Khuyến Mãi
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Tạo mới, thiết lập và quản lý các chương trình ưu đãi dành cho khách
+            hàng
+          </p>
+        </div>
+
         <button
           onClick={() => {
             setEditingId(null);
@@ -122,122 +131,132 @@ export default function DiscountsManager() {
             });
             setShowModal(true);
           }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-medium shadow-sm transition flex items-center gap-2 cursor-pointer"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-medium shadow-xs transition flex items-center gap-2 cursor-pointer self-start md:self-auto"
         >
-          <Plus size={18} /> Thêm Mã Mới
+          <Plus size={16} /> Thêm Mã Mới
         </button>
       </div>
 
-      {/* Bảng danh sách mã giảm giá */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-gray-100 dark:bg-slate-800/80 text-gray-600 dark:text-gray-300 text-sm border-b border-gray-200 dark:border-slate-800">
-              <th className="p-3">Mã Code</th>
-              <th className="p-3">Kiểu Giảm</th>
-              <th className="p-3">Giá Trị</th>
-              <th className="p-3">Giá trị tối thiểu</th>
-              <th className="p-3 text-center">Số đơn đã dùng</th>
-              <th className="p-3">Tổng tiền đã giảm</th>
-              <th className="p-3">Thời Gian Hiệu Lực</th>
-              <th className="p-3">Trạng Thái</th>
-              <th className="p-3 text-center">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-slate-800 text-sm">
-            {discounts.length === 0 ? (
-              <tr>
-                <td
-                  colSpan="9"
-                  className="text-center py-6 text-gray-400 dark:text-gray-500"
-                >
-                  Chưa có mã giảm giá nào.
-                </td>
+      {/* BẢNG DANH SÁCH MÃ GIẢM GIÁ */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="p-5 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Danh sách mã khuyến mãi ({discounts.length})
+          </h2>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
+                <th className="p-3.5">Mã Code</th>
+                <th className="p-3.5">Kiểu Giảm</th>
+                <th className="p-3.5">Giá Trị</th>
+                <th className="p-3.5">Giá trị tối thiểu</th>
+                <th className="p-3.5 text-center">Số đơn đã dùng</th>
+                <th className="p-3.5">Tổng tiền đã giảm</th>
+                <th className="p-3.5">Thời Gian Hiệu Lực</th>
+                <th className="p-3.5">Trạng Thái</th>
+                <th className="p-3.5 text-right">Thao Tác</th>
               </tr>
-            ) : (
-              discounts.map((item) => (
-                <tr
-                  key={item._id}
-                  className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition"
-                >
-                  <td className="p-3 font-bold text-blue-600 dark:text-blue-400">
-                    {item.code}
-                  </td>
-                  <td className="p-3">
-                    {item.discountType === "percentage"
-                      ? "Theo Phần Trăm (%)"
-                      : "Tiền Trực Tiếp (VNĐ)"}
-                  </td>
-                  <td className="p-3 font-semibold text-green-600 dark:text-green-400">
-                    {item.discountType === "percentage"
-                      ? `${item.discountValue}% ${
-                          item.maxDiscountValue
-                            ? `(Tối đa: ${item.maxDiscountValue.toLocaleString()}đ)`
-                            : ""
-                        }`
-                      : `${item.discountValue.toLocaleString()}đ`}
-                  </td>
-                  <td className="p-3">
-                    {item.minOrderValue
-                      ? `${item.minOrderValue.toLocaleString()}đ`
-                      : "Không có"}
-                  </td>
-
-                  <td className="p-3 font-semibold text-blue-600 dark:text-blue-400 text-center">
-                    {item.usedCount || 0} đơn
-                  </td>
-                  <td className="p-3 font-semibold text-orange-600 dark:text-orange-400">
-                    {(item.totalDiscountedAmount || 0).toLocaleString()}đ
-                  </td>
-
-                  <td className="p-3 text-gray-500 dark:text-gray-400">
-                    {new Date(item.startDate).toLocaleDateString("vi-VN")} ➔{" "}
-                    {new Date(item.endDate).toLocaleDateString("vi-VN")}
-                  </td>
-                  <td className="p-3">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                        item.isActive
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
-                          : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
-                      }`}
-                    >
-                      {item.isActive ? "Đang hoạt động" : "Tạm khóa"}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex items-center justify-center gap-3">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="text-blue-600 dark:text-blue-400 hover:underline font-medium flex items-center gap-1 cursor-pointer"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(item)}
-                        className="text-red-600 dark:text-red-400 hover:underline font-medium flex items-center gap-1 cursor-pointer"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              {discounts.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="9"
+                    className="text-center py-10 text-slate-400 dark:text-slate-500 italic text-xs"
+                  >
+                    Chưa có mã giảm giá nào.
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                discounts.map((item) => (
+                  <tr
+                    key={item._id}
+                    className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition"
+                  >
+                    <td className="p-3.5 font-bold text-emerald-600 dark:text-emerald-400 font-mono text-sm">
+                      {item.code}
+                    </td>
+                    <td className="p-3.5 text-slate-600 dark:text-slate-300">
+                      {item.discountType === "percentage"
+                        ? "Theo Phần Trăm (%)"
+                        : "Tiền Trực Tiếp (VNĐ)"}
+                    </td>
+                    <td className="p-3.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                      {item.discountType === "percentage"
+                        ? `${item.discountValue}% ${
+                            item.maxDiscountValue
+                              ? `(Tối đa: ${item.maxDiscountValue.toLocaleString()}đ)`
+                              : ""
+                          }`
+                        : `${item.discountValue.toLocaleString()}đ`}
+                    </td>
+                    <td className="p-3.5 text-slate-500 dark:text-slate-400">
+                      {item.minOrderValue
+                        ? `${item.minOrderValue.toLocaleString()}đ`
+                        : "Không có"}
+                    </td>
+
+                    <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-200 text-center">
+                      {item.usedCount || 0} đơn
+                    </td>
+                    <td className="p-3.5 font-semibold text-amber-600 dark:text-amber-400">
+                      {(item.totalDiscountedAmount || 0).toLocaleString()}đ
+                    </td>
+
+                    <td className="p-3.5 text-slate-500 dark:text-slate-400">
+                      {new Date(item.startDate).toLocaleDateString("vi-VN")} ➔{" "}
+                      {new Date(item.endDate).toLocaleDateString("vi-VN")}
+                    </td>
+                    <td className="p-3.5">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                          item.isActive
+                            ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                            : "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800"
+                        }`}
+                      >
+                        {item.isActive ? "Đang hoạt động" : "Tạm khóa"}
+                      </span>
+                    </td>
+                    <td className="p-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="p-1.5 text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
+                          title="Chỉnh sửa"
+                        >
+                          <Edit size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(item)}
+                          className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
+                          title="Xóa mã"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Modal Thêm / Sửa */}
+      {/* MODAL THÊM / SỬA */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl text-gray-800 dark:text-gray-100">
-            <h2 className="text-xl font-bold mb-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 w-full max-w-lg shadow-2xl text-slate-800 dark:text-slate-100 animate-in fade-in zoom-in duration-200">
+            <h2 className="text-base font-bold mb-4 text-slate-800 dark:text-white pb-3 border-b border-slate-100 dark:border-slate-800">
               {editingId ? "Sửa Mã Giảm Giá" : "Thêm Mã Giảm Giá Mới"}
             </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
                   Mã Code (VD: TET2026)
                 </label>
                 <input
@@ -247,13 +266,13 @@ export default function DiscountsManager() {
                   onChange={(e) =>
                     setFormData({ ...formData, code: e.target.value })
                   }
-                  className="w-full border border-gray-300 dark:border-slate-700 bg-transparent rounded-xl p-2.5 uppercase font-bold outline-none focus:border-blue-500"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 uppercase font-bold outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
                     Kiểu giảm
                   </label>
                   <select
@@ -261,7 +280,7 @@ export default function DiscountsManager() {
                     onChange={(e) =>
                       setFormData({ ...formData, discountType: e.target.value })
                     }
-                    className="w-full border border-gray-300 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer"
+                    className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
                   >
                     <option value="percentage">Phần trăm (%)</option>
                     <option value="fixed">Số tiền (VNĐ)</option>
@@ -269,7 +288,7 @@ export default function DiscountsManager() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
                     Giá trị giảm (
                     {formData.discountType === "percentage" ? "%" : "VNĐ"})
                   </label>
@@ -283,7 +302,7 @@ export default function DiscountsManager() {
                         discountValue: Number(e.target.value),
                       })
                     }
-                    className="w-full border border-gray-300 dark:border-slate-700 bg-transparent rounded-xl p-2.5 outline-none focus:border-blue-500"
+                    className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                   />
                 </div>
               </div>
@@ -291,7 +310,7 @@ export default function DiscountsManager() {
               {/* Ô nhập giới hạn giảm tối đa (chỉ hiện khi chọn kiểu percentage) */}
               {formData.discountType === "percentage" && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
                     Giảm tối đa (VNĐ)
                   </label>
                   <input
@@ -303,14 +322,14 @@ export default function DiscountsManager() {
                         maxDiscountValue: Number(e.target.value),
                       })
                     }
-                    className="w-full border border-gray-300 dark:border-slate-700 bg-transparent rounded-xl p-2.5 outline-none focus:border-blue-500"
+                    className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                     placeholder="Không giới hạn nếu để trống"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
                   Đơn hàng tối thiểu (VNĐ)
                 </label>
                 <input
@@ -322,14 +341,14 @@ export default function DiscountsManager() {
                       minOrderValue: Number(e.target.value),
                     })
                   }
-                  className="w-full border border-gray-300 dark:border-slate-700 bg-transparent rounded-xl p-2.5 outline-none focus:border-blue-500"
+                  className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                   placeholder="Để trống nếu không giới hạn"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
                     Ngày bắt đầu
                   </label>
                   <input
@@ -339,12 +358,11 @@ export default function DiscountsManager() {
                     onChange={(e) =>
                       setFormData({ ...formData, startDate: e.target.value })
                     }
-                    className="w-full border border-gray-300 dark:border-slate-700 bg-transparent rounded-xl p-2.5 outline-none cursor-pointer"
-                    style={{ colorScheme: "dark" }}
+                    className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
                     Ngày kết thúc
                   </label>
                   <input
@@ -354,8 +372,7 @@ export default function DiscountsManager() {
                     onChange={(e) =>
                       setFormData({ ...formData, endDate: e.target.value })
                     }
-                    className="w-full border border-gray-300 dark:border-slate-700 bg-transparent rounded-xl p-2.5 outline-none cursor-pointer"
-                    style={{ colorScheme: "dark" }}
+                    className="w-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-xl p-2.5 outline-none cursor-pointer focus:border-emerald-500 transition"
                   />
                 </div>
               </div>
@@ -368,27 +385,27 @@ export default function DiscountsManager() {
                   onChange={(e) =>
                     setFormData({ ...formData, isActive: e.target.checked })
                   }
-                  className="w-4 h-4 accent-blue-600 rounded cursor-pointer"
+                  className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
                 />
                 <label
                   htmlFor="isActive"
-                  className="text-sm font-medium cursor-pointer"
+                  className="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
                 >
                   Kích hoạt mã này ngay
                 </label>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-gray-300 dark:border-slate-700 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer transition"
+                  className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition font-medium"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 cursor-pointer transition shadow-sm"
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 cursor-pointer transition shadow-xs"
                 >
                   {editingId ? "Cập Nhật" : "Tạo Mới"}
                 </button>
@@ -398,19 +415,19 @@ export default function DiscountsManager() {
         </div>
       )}
 
-      {/* Modal Xác Nhận Xóa */}
+      {/* MODAL XÁC NHẬN XÓA */}
       {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-gray-200 dark:border-slate-800 text-center">
-            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-4">
-              <AlertCircle size={24} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 border border-slate-200 dark:border-slate-800 text-center animate-in fade-in zoom-in duration-200">
+            <div className="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/50 text-amber-500 flex items-center justify-center mx-auto mb-4 border border-amber-100 dark:border-amber-900/40">
+              <AlertTriangle size={24} />
             </div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">
+            <h3 className="text-base font-bold text-slate-800 dark:text-white mb-2">
               Xác nhận xóa mã giảm giá
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
               Bạn có chắc chắn muốn xóa mã{" "}
-              <span className="font-semibold text-slate-700 dark:text-slate-200">
+              <span className="font-bold text-slate-700 dark:text-slate-200">
                 "{discountToDelete?.code}"
               </span>{" "}
               không? Hành động này không thể hoàn tác.
@@ -422,14 +439,14 @@ export default function DiscountsManager() {
                   setShowDeleteModal(false);
                   setDiscountToDelete(null);
                 }}
-                className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 font-medium text-sm transition-all cursor-pointer"
+                className="flex-1 px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 font-medium text-xs transition cursor-pointer"
               >
                 Hủy bỏ
               </button>
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium text-sm shadow-sm transition-all cursor-pointer"
+                className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 font-medium text-xs shadow-xs transition cursor-pointer"
               >
                 Xác nhận xóa
               </button>

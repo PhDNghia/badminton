@@ -3,7 +3,7 @@ import { getDashboardStats } from "../controllers/DashboardController.js";
 import {
   verifyToken,
   verifyAdminOrStaff,
-} from "../middlewares/AuthMiddlerware.js";
+} from "../middlewares/AuthMiddleware.js";
 
 const dashboardRouter = express.Router();
 

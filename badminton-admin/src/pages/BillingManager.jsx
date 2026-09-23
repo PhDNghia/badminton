@@ -1,4 +1,3 @@
-// badminton-admin/src/pages/BillingManager.jsx
 import React, { useState, useEffect } from "react";
 import API from "../services/api";
 import {
@@ -13,6 +12,9 @@ import {
   Minus,
   Check,
   Tag,
+  CircleDot,
+  Receipt,
+  X,
 } from "lucide-react";
 
 import CheckoutModal from "../components/CheckoutModal";
@@ -363,43 +365,50 @@ export default function BillingManager() {
 
   return (
     <div className="w-full min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative transition-colors duration-200">
+      {/* THÔNG BÁO POPUP */}
       {notification.message && (
-        <div className="fixed top-6 right-6 z-50 animate-bounce">
+        <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div
-            className={`px-4 py-3 rounded-xl text-white font-medium flex items-center gap-3 shadow-xl border ${
+            className={`px-4 py-3 rounded-xl text-white font-medium flex items-center gap-2.5 shadow-xl border ${
               notification.type === "error"
-                ? "bg-red-600 border-red-500"
+                ? "bg-rose-600 border-rose-500"
                 : "bg-emerald-600 border-emerald-500"
             }`}
           >
             <AlertCircle size={18} className="shrink-0" />
-            <span className="text-xs max-w-xs">{notification.message}</span>
+            <span className="text-xs max-w-xs font-medium">
+              {notification.message}
+            </span>
           </div>
         </div>
       )}
 
-      <div className="mb-4">
+      {/* HEADER TỔNG QUAN */}
+      <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
-          <ShoppingCart className="text-emerald-500" /> Quản Lý Hóa Đơn & Thanh
-          Toán (POS)
+          <ShoppingCart className="text-emerald-600" size={24} /> Quản Lý Hóa
+          Đơn & Thanh Toán
         </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           Hệ thống quản lý hóa đơn, dịch vụ phát sinh và thanh toán chuyên
-          nghiệp.
+          nghiệp
         </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 flex-1 items-start">
-        {/* CỘT 1: Sân đang check_in */}
-        <div className="xl:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm flex flex-col">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center justify-between">
-            <span>Sân đang hoạt động</span>
-            <span className="bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-xs px-2.5 py-0.5 rounded-full font-bold border border-emerald-200 dark:border-emerald-800">
+        {/* CỘT 1: SÂN ĐANG CHECK-IN */}
+        <div className="xl:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-xs flex flex-col">
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <CircleDot size={14} className="text-emerald-500" /> Sân đang hoạt
+              động
+            </h2>
+            <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs px-2.5 py-0.5 rounded-full font-bold border border-emerald-200 dark:border-emerald-800">
               {checkedInBookings.length} SÂN
             </span>
-          </h2>
+          </div>
 
-          <div className="space-y-3 overflow-y-auto pr-1 max-h-[calc(100vh-200px)]">
+          <div className="space-y-2.5 overflow-y-auto pr-1 max-h-[calc(100vh-210px)]">
             {checkedInBookings.length > 0 ? (
               checkedInBookings.map((booking) => {
                 const isSelected = selectedBooking?._id === booking._id;
@@ -410,9 +419,9 @@ export default function BillingManager() {
                   <div
                     key={booking._id}
                     onClick={() => handleSelectBooking(booking)}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    className={`p-3 rounded-xl border transition-all cursor-pointer ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 shadow-sm ring-1 ring-emerald-500"
+                        ? "border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/40 shadow-xs ring-1 ring-emerald-500"
                         : "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:border-emerald-500/50 hover:bg-slate-100 dark:hover:bg-slate-800"
                     }`}
                   >
@@ -420,7 +429,7 @@ export default function BillingManager() {
                       <span className="font-bold text-slate-800 dark:text-white text-sm">
                         {booking.court?.name || "Sân cầu lông"}
                       </span>
-                      <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50 px-2 py-0.5 rounded font-bold tracking-wide">
+                      <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50 px-2 py-0.5 rounded-full font-semibold">
                         Đang chơi
                       </span>
                     </div>
@@ -429,8 +438,7 @@ export default function BillingManager() {
                         <User
                           size={13}
                           className="text-slate-400 dark:text-slate-500 shrink-0"
-                        />{" "}
-                        Khách:{" "}
+                        />
                         <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
                           {customerDisplayName}
                         </span>
@@ -439,7 +447,7 @@ export default function BillingManager() {
                         <Clock
                           size={13}
                           className="text-slate-400 dark:text-slate-500 shrink-0"
-                        />{" "}
+                        />
                         Giờ: {booking.startTime} - {booking.endTime}
                       </p>
                     </div>
@@ -448,26 +456,26 @@ export default function BillingManager() {
               })
             ) : (
               <div className="text-center py-16 text-slate-400 dark:text-slate-500 italic text-xs">
-                Không có sân nào đang check-in lúc này.
+                Không có sân nào đang check-in.
               </div>
             )}
           </div>
         </div>
 
-        {/* CỘT 2: Sản phẩm */}
-        <div className="xl:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm flex flex-col">
-          <div className="flex justify-between items-center mb-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              1. Kho sản phẩm
+        {/* CỘT 2: KHO SẢN PHẨM */}
+        <div className="xl:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-xs flex flex-col">
+          <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+              <Package size={14} className="text-emerald-500" /> Kho sản phẩm
             </h2>
-            <span className="text-xs text-slate-400 dark:text-slate-500">
+            <span className="text-xs text-slate-400 font-medium">
               {filteredProducts.length} món
             </span>
           </div>
 
           <div className="relative mb-3">
             <Search
-              className="absolute left-3 top-2.5 text-slate-400 dark:text-slate-500"
+              className="absolute left-3.5 top-2.5 text-slate-400"
               size={15}
             />
             <input
@@ -475,21 +483,21 @@ export default function BillingManager() {
               placeholder="Tìm nhanh nước, cầu..."
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-xs outline-none focus:border-emerald-500 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
+              className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-800 dark:text-white placeholder-slate-400 transition"
             />
           </div>
 
-          <div className="space-y-2 overflow-y-auto pr-1 max-h-[calc(100vh-210px)]">
+          <div className="space-y-2 overflow-y-auto pr-1 max-h-[calc(100vh-220px)]">
             {filteredProducts.length > 0 ? (
               filteredProducts.map((p) => (
                 <button
                   key={p._id}
                   onClick={() => handleAddProduct(p)}
                   disabled={!currentInvoice}
-                  className={`w-full p-2.5 border rounded-xl text-left flex justify-between items-center transition-all group shadow-sm ${
+                  className={`w-full p-2.5 border rounded-xl text-left flex justify-between items-center transition-all group shadow-xs ${
                     currentInvoice
                       ? "border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:border-emerald-500/60 cursor-pointer"
-                      : "border-slate-200 dark:border-slate-900 bg-slate-100 dark:bg-slate-900/40 opacity-50 cursor-not-allowed"
+                      : "border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800/20 opacity-50 cursor-not-allowed"
                   }`}
                 >
                   <div className="pr-2 truncate">
@@ -500,55 +508,58 @@ export default function BillingManager() {
                       <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                         {p.price.toLocaleString("vi-VN")} đ
                       </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      <span className="text-[10px] text-slate-400">
                         Kho: {p.stock}
                       </span>
                     </div>
                   </div>
-                  <div className="w-6 h-6 bg-emerald-600 group-hover:bg-emerald-500 text-white rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors">
-                    +
+                  <div className="w-6 h-6 bg-emerald-600 group-hover:bg-emerald-700 text-white rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-colors">
+                    <Plus size={14} />
                   </div>
                 </button>
               ))
             ) : (
-              <div className="py-16 text-center text-slate-400 dark:text-slate-500 text-xs italic">
+              <div className="py-16 text-center text-slate-400 text-xs italic">
                 Không tìm thấy sản phẩm.
               </div>
             )}
           </div>
         </div>
 
-        {/* CỘT 3: Chi tiết hóa đơn & Nhập Voucher */}
-        <div className="xl:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-sm flex flex-col justify-between">
+        {/* CỘT 3: CHI TIẾT HÓA ĐƠN & VOUCHER */}
+        <div className="xl:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl shadow-xs flex flex-col justify-between">
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-              2. Chi tiết hóa đơn
-            </h2>
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                <Receipt size={14} className="text-emerald-500" /> Chi tiết hóa
+                đơn
+              </h2>
+            </div>
 
             {selectedBooking && currentInvoice ? (
               <>
-                <div className="text-xs text-slate-600 dark:text-slate-300 mb-3 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <div className="text-xs text-slate-600 dark:text-slate-300 mb-3 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center">
                   <div>
                     <p className="font-bold text-slate-800 dark:text-white text-sm">
                       {selectedBooking.court?.name}
                     </p>
                     <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
-                      Khách:{" "}
+                      Khách hàng:{" "}
                       <span className="text-slate-700 dark:text-slate-200 font-medium">
                         {selectedBooking.user?.name ||
                           selectedBooking.guestName}
                       </span>
                     </p>
                   </div>
-                  <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded font-medium border border-emerald-200 dark:border-emerald-700/50">
+                  <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full font-semibold border border-emerald-200 dark:border-emerald-700/50">
                     Đang chơi
                   </span>
                 </div>
 
                 <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-3.5 rounded-xl mb-3 text-xs space-y-3">
-                  <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 pb-2.5 border-b border-slate-200 dark:border-slate-800/60">
+                  <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 pb-2.5 border-b border-slate-200 dark:border-slate-800">
                     <span>Giờ đặt lịch gốc:</span>
-                    <span className="font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 px-2.5 py-1 rounded border border-slate-200 dark:border-slate-700 text-xs">
+                    <span className="font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-mono">
                       {selectedBooking.startTime} - {selectedBooking.endTime}
                     </span>
                   </div>
@@ -563,17 +574,14 @@ export default function BillingManager() {
                         placeholder="19:00"
                         value={actualStartTime}
                         onChange={(e) => setActualStartTime(e.target.value)}
-                        className="w-24 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-emerald-600 dark:text-emerald-400 font-bold text-xs text-center outline-none focus:border-emerald-500"
+                        className="w-20 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-emerald-600 dark:text-emerald-400 font-bold text-xs text-center outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition font-mono"
                       />
                       <button
                         onClick={() => handleSetCurrentTime("start")}
                         title="Lấy giờ hiện tại"
-                        className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center gap-1 transition cursor-pointer text-xs font-medium"
                       >
-                        <Clock size={14} />
-                        <span className="text-[11px] font-semibold">
-                          Hiện tại
-                        </span>
+                        <Clock size={13} /> Hiện tại
                       </button>
                     </div>
                   </div>
@@ -588,22 +596,19 @@ export default function BillingManager() {
                         placeholder="22:00"
                         value={actualEndTime}
                         onChange={(e) => setActualEndTime(e.target.value)}
-                        className="w-24 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-emerald-600 dark:text-emerald-400 font-bold text-xs text-center outline-none focus:border-emerald-500"
+                        className="w-20 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-emerald-600 dark:text-emerald-400 font-bold text-xs text-center outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition font-mono"
                       />
                       <button
                         onClick={() => handleSetCurrentTime("end")}
                         title="Lấy giờ hiện tại"
-                        className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center gap-1 transition cursor-pointer text-xs font-medium"
                       >
-                        <Clock size={14} />
-                        <span className="text-[11px] font-semibold">
-                          Hiện tại
-                        </span>
+                        <Clock size={13} /> Hiện tại
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 dark:border-slate-800/60 text-slate-600 dark:text-slate-300">
+                  <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
                     <span className="text-slate-500 dark:text-slate-400">
                       Tổng tiền sân:
                     </span>
@@ -616,10 +621,10 @@ export default function BillingManager() {
                 <div className="mt-2">
                   <div className="flex justify-between items-center mb-2">
                     <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                      Dịch vụ phát sinh:
+                      Dịch vụ phát sinh
                     </p>
-                    <span className="text-[10px] text-amber-500 dark:text-amber-400 italic">
-                      (Bấm nút tick ✔ nếu khách đã trả tiền món đó ngay)
+                    <span className="text-[10px] text-slate-400 italic">
+                      Bấm nút tick nếu khách trả tiền lẻ từng món
                     </span>
                   </div>
                   <div className="space-y-2">
@@ -645,7 +650,7 @@ export default function BillingManager() {
                                   </span>
                                 )}
                               </p>
-                              <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                              <p className="text-[10px] text-slate-400">
                                 {item.price.toLocaleString("vi-VN")} đ
                               </p>
                             </div>
@@ -660,7 +665,7 @@ export default function BillingManager() {
                                 }
                                 className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors cursor-pointer border ${
                                   isPaid
-                                    ? "bg-emerald-600 border-emerald-600 text-white shadow-sm"
+                                    ? "bg-emerald-600 border-emerald-600 text-white shadow-xs"
                                     : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-emerald-600"
                                 }`}
                               >
@@ -700,24 +705,21 @@ export default function BillingManager() {
                         );
                       })
                     ) : (
-                      <p className="text-xs text-slate-400 dark:text-slate-500 italic py-3 text-center bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                        Chưa chọn món phát sinh nào. Bấm vào sản phẩm ở giữa để
-                        thêm.
+                      <p className="text-xs text-slate-400 italic py-4 text-center bg-slate-50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                        Chưa chọn món phát sinh nào.
                       </p>
                     )}
                   </div>
                 </div>
               </>
             ) : (
-              <div className="py-24 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+              <div className="py-24 flex flex-col items-center justify-center text-slate-400">
                 <Package
-                  size={42}
+                  size={40}
                   className="stroke-1 mb-2 text-slate-300 dark:text-slate-700"
                 />
                 <p className="text-xs text-center">
-                  Chưa chọn sân nào.
-                  <br />
-                  Vui lòng chọn sân bên trái để lập bill.
+                  Vui lòng chọn sân bên trái để lập hóa đơn
                 </p>
               </div>
             )}
@@ -725,19 +727,19 @@ export default function BillingManager() {
 
           {selectedBooking && currentInvoice && (
             <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3 space-y-2 text-xs">
-              {/* PHẦN NHẬP VOUCHER LIÊN KẾT DATABASE */}
-              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
-                <Tag size={15} className="text-emerald-500 shrink-0 ml-1" />
+              {/* NHẬP VOUCHER */}
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-1.5 pl-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                <Tag size={15} className="text-emerald-600 shrink-0" />
                 <input
                   type="text"
-                  placeholder="Nhập mã voucher (VD: TRUNGTHU2026)"
+                  placeholder="Mã voucher (VD: KHUYENMAI)"
                   value={voucherCode}
                   onChange={(e) => setVoucherCode(e.target.value)}
-                  className="w-full bg-transparent border-none outline-none text-xs text-slate-800 dark:text-white uppercase placeholder-slate-400"
+                  className="w-full bg-transparent border-none outline-none text-xs text-slate-800 dark:text-white uppercase placeholder-slate-400 font-mono"
                 />
                 <button
                   onClick={handleApplyVoucher}
-                  className="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors cursor-pointer text-[11px] shrink-0"
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors cursor-pointer text-xs shrink-0 shadow-xs"
                 >
                   Áp dụng
                 </button>
@@ -756,8 +758,8 @@ export default function BillingManager() {
                 </span>
               </div>
               {paidItemsAmount > 0 && (
-                <div className="flex justify-between text-amber-500 dark:text-amber-400">
-                  <span>Đã thanh toán lẻ các món trước:</span>
+                <div className="flex justify-between text-amber-600 dark:text-amber-400 font-medium">
+                  <span>Đã thanh toán lẻ các món:</span>
                   <span>-{paidItemsAmount.toLocaleString("vi-VN")} đ</span>
                 </div>
               )}
@@ -769,20 +771,20 @@ export default function BillingManager() {
               )}
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Đã cọc trước:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                   -{depositPaid.toLocaleString("vi-VN")} đ
                 </span>
               </div>
-              <div className="flex justify-between font-bold text-sm text-slate-800 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800/60">
-                <span>Cần thanh toán thêm cuối giờ:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 text-lg">
+              <div className="flex justify-between font-bold text-sm text-slate-800 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800">
+                <span>Cần thanh toán thêm:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 text-base">
                   {remainingAmount.toLocaleString("vi-VN")} đ
                 </span>
               </div>
 
               <button
                 onClick={() => setIsCheckoutModalOpen(true)}
-                className="w-full mt-3 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                className="w-full mt-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
               >
                 <CheckCircle2 size={16} /> Tiến Hành Thanh Toán
               </button>

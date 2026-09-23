@@ -131,14 +131,18 @@ export const updateInvoicePOS = async (req, res) => {
 
     await invoice.save();
 
-    // Đồng thời cập nhật trạng thái của Booking tương ứng
-    let newBookingStatus = "confirmed";
-    if (paymentStatus === "paid_deposit") newBookingStatus = "confirmed";
-    if (paymentStatus === "paid_full") newBookingStatus = "completed";
+    await invoice.save();
 
-    await BookingModel.findByIdAndUpdate(invoice.booking, {
-      bookingStatus: newBookingStatus,
-    });
+    // ✅ CHỈ CẬP NHẬT TRẠNG THÁI BOOKING KHI CÓ GỬI KÈM PAYMENTSTATUS
+    if (paymentStatus) {
+      let newBookingStatus = "confirmed";
+      if (paymentStatus === "paid_deposit") newBookingStatus = "confirmed";
+      if (paymentStatus === "paid_full") newBookingStatus = "completed";
+
+      await BookingModel.findByIdAndUpdate(invoice.booking, {
+        bookingStatus: newBookingStatus,
+      });
+    }
 
     res.status(200).json({
       success: true,

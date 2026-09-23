@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import API from "../services/api"; // Sử dụng API instance đã có Token interceptor
+import API from "../services/api";
 import {
   Plus,
   Search,
@@ -15,7 +15,6 @@ export default function ProductsManager() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // State Modal Thêm / Sửa
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentId, setCurrentId] = useState(null);
@@ -26,11 +25,9 @@ export default function ProductsManager() {
     stock: "",
   });
 
-  // State Modal Xác Nhận Xóa
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
 
-  // State thông báo banner
   const [notification, setNotification] = useState({ message: "", type: "" });
 
   const showNotification = (message, type = "success") => {
@@ -93,13 +90,11 @@ export default function ProductsManager() {
     }
   };
 
-  // Mở modal xác nhận xóa
   const handleDeleteClick = (product) => {
     setProductToDelete(product);
     setShowDeleteModal(true);
   };
 
-  // Thực thi xóa sản phẩm qua API sau khi xác nhận trong Modal
   const confirmDelete = async () => {
     if (!productToDelete) return;
     try {
@@ -115,7 +110,6 @@ export default function ProductsManager() {
     }
   };
 
-  // Map tên danh mục tiếng Việt cho dễ nhìn
   const categoryLabels = {
     drink: "Nước giải khát",
     shuttlecock: "Ống cầu lông",
@@ -125,7 +119,6 @@ export default function ProductsManager() {
 
   return (
     <div className="p-6 bg-slate-100 dark:bg-slate-950 min-h-screen text-slate-800 dark:text-slate-100 transition-colors duration-200">
-      {/* Banner thông báo */}
       {notification.message && (
         <div
           className={`mb-4 p-4 rounded-xl text-white font-medium flex items-center gap-3 shadow-lg transition-all ${
@@ -141,7 +134,6 @@ export default function ProductsManager() {
         </div>
       )}
 
-      {/* Header trang */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -160,7 +152,6 @@ export default function ProductsManager() {
         </button>
       </div>
 
-      {/* Thanh tìm kiếm và bộ lọc danh mục */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between transition-colors duration-200">
         <div className="relative w-full md:w-96">
           <Search
@@ -195,7 +186,6 @@ export default function ProductsManager() {
         </div>
       </div>
 
-      {/* Bảng danh sách sản phẩm */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden transition-colors duration-200">
         <table className="w-full border-collapse text-left">
           <thead>
@@ -270,7 +260,6 @@ export default function ProductsManager() {
         </table>
       </div>
 
-      {/* Modal Thêm / Sửa Sản Phẩm */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-200 dark:border-slate-800 transform transition-all">
@@ -367,7 +356,6 @@ export default function ProductsManager() {
         </div>
       )}
 
-      {/* Modal Xác Nhận Xóa */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm p-6 border border-slate-200 dark:border-slate-800 transform transition-all text-center">

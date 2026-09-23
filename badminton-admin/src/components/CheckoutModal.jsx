@@ -41,7 +41,6 @@ export default function CheckoutModal({
 
   const qrUrl = `https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.jpg?amount=${remainingAmount}&addInfo=${encodedAddInfo}&accountName=${encodedAccountName}`;
 
-  // Hàm xử lý in hóa đơn nhiệt khổ K80
   const handlePrintReceipt = () => {
     const printContent = printRef.current;
     if (!printContent) return;
@@ -85,51 +84,56 @@ export default function CheckoutModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-4xl p-6 shadow-2xl text-slate-100 flex flex-col max-h-[95vh]">
-        {/* Header Modal */}
-        <div className="flex justify-between items-center pb-4 border-b border-slate-800 mb-5 shrink-0">
-          <h3 className="text-base font-bold text-emerald-400 flex items-center gap-2">
+    <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-4xl p-6 shadow-2xl text-slate-800 dark:text-slate-100 flex flex-col max-h-[95vh]">
+        <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800 mb-5 shrink-0">
+          <h3 className="text-base font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
             <Receipt size={18} /> XÁC NHẬN THANH TOÁN & CHỌN PHƯƠNG THỨC
           </h3>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg bg-slate-100 dark:bg-slate-800/60 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Nội dung 2 cột */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1 flex-1">
-          {/* CỘT TRÁI: Chi tiết hóa đơn */}
-          <div className="bg-slate-800/40 border border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4">
+          <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between space-y-4">
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-700/60 pb-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700/60 pb-2">
                 Thông tin chi tiết hóa đơn
               </h4>
 
-              <div className="text-xs space-y-1.5 bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+              <div className="text-xs space-y-1.5 bg-white dark:bg-slate-900/60 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Sân:</span>
-                  <span className="font-bold text-white">{courtName}</span>
+                  <span className="text-slate-500 dark:text-slate-400">
+                    Sân:
+                  </span>
+                  <span className="font-bold text-slate-800 dark:text-white">
+                    {courtName}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Khách hàng:</span>
-                  <span className="font-bold text-white">{customerName}</span>
+                  <span className="text-slate-500 dark:text-slate-400">
+                    Khách hàng:
+                  </span>
+                  <span className="font-bold text-slate-800 dark:text-white">
+                    {customerName}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">
+                  <span className="text-slate-500 dark:text-slate-400">
                     Thời gian chơi thực tế:
                   </span>
-                  <span className="font-bold text-emerald-400">
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
                     {actualStartTime} - {actualEndTime}
                   </span>
                 </div>
               </div>
 
               <div>
-                <p className="text-[11px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">
+                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
                   Dịch vụ / Sản phẩm:
                 </p>
                 <div className="space-y-1.5">
@@ -139,17 +143,17 @@ export default function CheckoutModal({
                       return (
                         <div
                           key={pId}
-                          className="flex justify-between items-center text-xs bg-slate-900/40 p-2.5 rounded border border-slate-800/60"
+                          className="flex justify-between items-center text-xs bg-white dark:bg-slate-900/40 p-2.5 rounded border border-slate-200 dark:border-slate-800/60"
                         >
-                          <span className="text-slate-200 truncate w-3/5">
+                          <span className="text-slate-700 dark:text-slate-200 truncate w-3/5">
                             {item.name} (x{item.quantity}){" "}
                             {item.isPaid && (
-                              <span className="text-emerald-400 text-[10px]">
+                              <span className="text-emerald-600 dark:text-emerald-400 text-[10px]">
                                 (Đã trả lẻ)
                               </span>
                             )}
                           </span>
-                          <span className="font-semibold text-emerald-400">
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                             {(item.price * item.quantity).toLocaleString(
                               "vi-VN",
                             )}{" "}
@@ -159,7 +163,7 @@ export default function CheckoutModal({
                       );
                     })
                   ) : (
-                    <p className="text-[11px] text-slate-500 italic">
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 italic">
                       Không có dịch vụ phát sinh.
                     </p>
                   )}
@@ -167,61 +171,60 @@ export default function CheckoutModal({
               </div>
             </div>
 
-            <div className="border-t border-slate-700/60 pt-3 space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-400">
+            <div className="border-t border-slate-200 dark:border-slate-700/60 pt-3 space-y-1.5 text-xs">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Tiền sân:</span>
-                <span className="text-slate-200">
+                <span className="text-slate-700 dark:text-slate-200">
                   {totalCourtFee.toLocaleString("vi-VN")} đ
                 </span>
               </div>
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Tổng tiền hàng phát sinh:</span>
-                <span className="text-slate-200">
+                <span className="text-slate-700 dark:text-slate-200">
                   {productsTotal.toLocaleString("vi-VN")} đ
                 </span>
               </div>
               {paidItemsAmount > 0 && (
-                <div className="flex justify-between text-amber-400">
+                <div className="flex justify-between text-amber-600 dark:text-amber-400">
                   <span>Đã thanh toán lẻ các món trước:</span>
                   <span>-{paidItemsAmount.toLocaleString("vi-VN")} đ</span>
                 </div>
               )}
               {discountAmount > 0 && (
-                <div className="flex justify-between text-emerald-400 font-medium">
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-medium">
                   <span>Giảm giá Voucher ({appliedVoucher?.code}):</span>
                   <span>-{discountAmount.toLocaleString("vi-VN")} đ</span>
                 </div>
               )}
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-500 dark:text-slate-400">
                 <span>Đã cọc trước:</span>
-                <span className="text-emerald-400">
+                <span className="text-emerald-600 dark:text-emerald-400">
                   -{depositPaid.toLocaleString("vi-VN")} đ
                 </span>
               </div>
-              <div className="flex justify-between font-bold text-sm text-white pt-2 border-t border-slate-700/60">
+              <div className="flex justify-between font-bold text-sm text-slate-800 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-700/60">
                 <span>Tổng tiền còn lại cần trả:</span>
-                <span className="text-emerald-400 text-base">
+                <span className="text-emerald-600 dark:text-emerald-400 text-base">
                   {remainingAmount.toLocaleString("vi-VN")} đ
                 </span>
               </div>
             </div>
           </div>
 
-          {/* CỘT PHẢI: Mã QR & Nút lựa chọn thanh toán */}
-          <div className="bg-slate-800/40 border border-slate-800 p-4 rounded-xl flex flex-col items-center justify-between">
+          <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex flex-col items-center justify-between">
             <div className="w-full flex flex-col items-center justify-center flex-1">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
                 <QrCode size={15} /> Quét mã QR chuyển khoản
               </h4>
 
-              <div className="bg-white p-2.5 rounded-2xl shadow-xl border border-slate-700 mb-3">
+              <div className="bg-white p-2.5 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 mb-3">
                 <img
                   src={qrUrl}
                   alt="QR Thanh Toán"
                   className="w-44 h-44 object-contain rounded"
                 />
               </div>
-              <p className="text-[11px] text-amber-400 font-medium bg-amber-950/40 px-3 py-1 rounded-lg border border-amber-800/50 text-center">
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/40 px-3 py-1 rounded-lg border border-amber-200 dark:border-amber-800/50 text-center">
                 Nội dung CK: {addInfoText}
               </p>
             </div>
@@ -242,7 +245,6 @@ export default function CheckoutModal({
                 </button>
               </div>
 
-              {/* Nút In hóa đơn */}
               <button
                 onClick={handlePrintReceipt}
                 className="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl font-medium transition-all text-xs cursor-pointer flex items-center justify-center gap-1.5 shadow-md"
@@ -252,7 +254,7 @@ export default function CheckoutModal({
 
               <button
                 onClick={onClose}
-                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl font-medium transition-all text-xs cursor-pointer"
+                className="w-full py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl font-medium transition-all text-xs cursor-pointer"
               >
                 Đóng
               </button>
@@ -261,14 +263,13 @@ export default function CheckoutModal({
         </div>
       </div>
 
-      {/* MẪU KHUNG HÓA ĐƠN NHIỆT ẨN DÙNG ĐỂ IN */}
       <div style={{ display: "none" }}>
         <div ref={printRef}>
           <div className="text-center font-bold" style={{ fontSize: "14px" }}>
-            HỆ THỐNG SÂN CẦU LÔNG
+            HỆ THỐNG SÂN CẦU LÔNG TONO
           </div>
           <div className="text-center" style={{ fontSize: "11px" }}>
-            ĐC: Số 123 Đường Cầu Lông, TP.HCM
+            ĐC: Ninh Kiều, Cần Thơ
           </div>
           <div className="text-center" style={{ fontSize: "11px" }}>
             Hotline: 0909.xxx.xxx
@@ -399,7 +400,6 @@ export default function CheckoutModal({
           </div>
           <div className="border-b mt-2"></div>
 
-          {/* MÃ QR THANH TOÁN TRÊN HÓA ĐƠN IN */}
           <div className="text-center mt-3">
             <div
               style={{
@@ -420,9 +420,6 @@ export default function CheckoutModal({
                 display: "block",
               }}
             />
-            {/* <div style={{ fontSize: "8px", marginTop: "2px" }}>
-              Nội dung: {addInfoText}
-            </div> */}
           </div>
 
           <div className="text-center mt-3" style={{ fontSize: "11px" }}>

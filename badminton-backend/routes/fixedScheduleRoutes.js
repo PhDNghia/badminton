@@ -8,7 +8,7 @@ import {
 import {
   verifyToken,
   verifyAdminOrStaff,
-} from "../middlewares/AuthMiddlerware.js";
+} from "../middlewares/AuthMiddleware.js";
 
 const fixedScheduleRouter = express.Router();
 

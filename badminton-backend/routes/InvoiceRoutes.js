@@ -9,7 +9,7 @@ import {
 import {
   verifyToken,
   verifyAdminOrStaff,
-} from "../middlewares/AuthMiddlerware.js";
+} from "../middlewares/AuthMiddleware.js";
 
 const invoiceRouter = express.Router();
 

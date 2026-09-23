@@ -1,17 +1,8 @@
-// badminton-admin/src/pages/LoginView.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import { toast } from "react-toastify";
-import {
-  Eye,
-  EyeOff,
-  KeyRound,
-  Phone,
-  Sun,
-  Moon,
-  ShieldCheck,
-} from "lucide-react";
+import { Eye, EyeOff, KeyRound, Phone, Sun, Moon } from "lucide-react";
 
 export default function LoginView() {
   const [phone, setPhone] = useState("");
@@ -78,41 +69,41 @@ export default function LoginView() {
       {/* Nút chuyển đổi Sáng / Tối ở góc trên bên phải */}
       <button
         onClick={toggleTheme}
-        className="absolute top-6 right-6 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-sm hover:shadow transition cursor-pointer"
+        className="absolute top-6 right-6 p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 shadow-xs hover:shadow transition cursor-pointer"
         title="Chuyển đổi giao diện"
       >
         {darkMode ? (
-          <Sun size={20} className="text-amber-400" />
+          <Sun size={18} className="text-amber-400" />
         ) : (
-          <Moon size={20} className="text-slate-600" />
+          <Moon size={18} className="text-slate-600" />
         )}
       </button>
 
       {/* Form Đăng Nhập bự và căn giữa */}
-      <div className="bg-white dark:bg-slate-900 p-10 sm:p-12 rounded-[32px] shadow-2xl max-w-lg w-full border border-slate-200/80 dark:border-slate-800 transition-colors duration-200">
+      <div className="bg-white dark:bg-slate-900 p-8 sm:p-10 rounded-2xl shadow-xl max-w-md w-full border border-slate-200 dark:border-slate-800 transition-colors duration-200">
         {/* Logo & Tiêu đề */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-tr from-violet-600 to-indigo-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30 text-2xl">
+          <div className="w-14 h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-md shadow-emerald-500/20 text-2xl">
             🏸
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-white tracking-tight">
             Quản Lý Sân Cầu Lông
           </h1>
-          <p className="text-sm text-slate-400 dark:text-slate-400 mt-2">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Đăng nhập vào hệ thống quản trị Admin
           </p>
         </div>
 
         {/* Form chính */}
-        <form onSubmit={handleLogin} className="space-y-5">
+        <form onSubmit={handleLogin} className="space-y-4 text-xs">
           {/* Ô số điện thoại */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider">
+            <label className="block font-medium text-slate-600 dark:text-slate-300 mb-1">
               Số điện thoại
             </label>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                <Phone size={18} />
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                <Phone size={16} />
               </span>
               <input
                 type="text"
@@ -120,15 +111,15 @@ export default function LoginView() {
                 placeholder="Nhập số điện thoại..."
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
               />
             </div>
           </div>
 
           {/* Ô mật khẩu */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-medium text-slate-600 dark:text-slate-300">
                 Mật khẩu
               </label>
               <a
@@ -139,14 +130,14 @@ export default function LoginView() {
                     "Vui lòng liên hệ Quản trị viên cấp cao để khôi phục mật khẩu!",
                   );
                 }}
-                className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                className="text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
               >
                 Quên mật khẩu?
               </a>
             </div>
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-                <KeyRound size={18} />
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                <KeyRound size={16} />
               </span>
               <input
                 type={showPassword ? "text" : "password"}
@@ -154,14 +145,14 @@ export default function LoginView() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-12 pr-12 py-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
@@ -170,10 +161,10 @@ export default function LoginView() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-3.5 px-4 rounded-2xl shadow-lg shadow-indigo-600/30 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-xl shadow-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
             {loading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
               "Đăng Nhập"
             )}
@@ -181,8 +172,8 @@ export default function LoginView() {
         </form>
 
         {/* Footer Phiên bản */}
-        <div className="mt-8 text-center border-t border-slate-100 dark:border-slate-800/80 pt-5">
-          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+        <div className="mt-8 text-center border-t border-slate-100 dark:border-slate-800 pt-4">
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
             Hệ thống quản lý sân cầu lông thông minh v1.0
           </p>
         </div>

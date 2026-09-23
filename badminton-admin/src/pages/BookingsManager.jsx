@@ -3,13 +3,19 @@ import API from "../services/api";
 import {
   Plus,
   Trash2,
-  CheckCircle,
+  CheckCircle2,
   CheckSquare,
   AlertTriangle,
   Calendar,
   Clock,
   User,
   MapPin,
+  X,
+  Lock,
+  RotateCcw,
+  Sparkles,
+  Phone,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -352,32 +358,32 @@ export default function BookingsManager() {
     switch (status) {
       case "confirmed":
         return (
-          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
             Đã xác nhận
           </span>
         );
       case "checked_in":
         return (
-          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
             Đang chơi
           </span>
         );
       case "completed":
       case "COMPLETED":
         return (
-          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
             Đã hoàn thành
           </span>
         );
       case "cancelled":
         return (
-          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
+          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
             Đã hủy
           </span>
         );
       default:
         return (
-          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+          <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
             Chờ xác nhận
           </span>
         );
@@ -386,23 +392,41 @@ export default function BookingsManager() {
 
   const filteredBookings = bookings.filter((item) => {
     if (!item.date) return false;
-    // Cắt chuỗi trực tiếp để tránh lệch múi giờ UTC so với chuỗi "YYYY-MM-DD" từ database
     const itemDate = String(item.date).split("T")[0];
     return itemDate === selectedDate;
   });
+
   return (
     <div className="pb-12" onMouseUp={handleMouseUp}>
       {/* MODAL XÁC NHẬN CHUNG */}
       {confirmModal.show && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-3 mb-4 text-amber-500">
-              <AlertTriangle size={28} />
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800 relative">
+            <button
+              type="button"
+              onClick={() =>
+                setConfirmModal({
+                  show: false,
+                  title: "",
+                  message: "",
+                  isNoShowAction: false,
+                  bookingId: null,
+                  onConfirm: null,
+                })
+              }
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1.5 rounded-lg transition cursor-pointer"
+              title="Đóng modal"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-3 text-amber-500 pr-6">
+              <AlertTriangle size={24} className="shrink-0" />
+              <h3 className="text-base font-bold text-slate-800 dark:text-white">
                 {confirmModal.title}
               </h3>
             </div>
-            <p className="text-slate-600 dark:text-slate-300 text-sm mb-6">
+            <p className="text-slate-600 dark:text-slate-300 text-sm mb-6 leading-relaxed">
               {confirmModal.message}
             </p>
 
@@ -421,9 +445,9 @@ export default function BookingsManager() {
                       onConfirm: null,
                     });
                   }}
-                  className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium shadow-md cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium shadow-xs transition cursor-pointer flex items-center justify-center gap-2"
                 >
-                  🔒 Giữ lại tiền cọc (Đẩy vào hóa đơn & Phạt tài khoản)
+                  <Lock size={16} /> Giữ cọc & Phạt tài khoản
                 </button>
 
                 <button
@@ -439,9 +463,26 @@ export default function BookingsManager() {
                       onConfirm: null,
                     });
                   }}
-                  className="w-full py-2.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
+                  className="w-full py-2.5 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-medium shadow-xs transition cursor-pointer flex items-center justify-center gap-2"
                 >
-                  ↩️ Hoàn tiền cọc / Hủy đơn bình thường
+                  <RotateCcw size={16} /> Hoàn tiền cọc / Hủy đơn
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmModal({
+                      show: false,
+                      title: "",
+                      message: "",
+                      isNoShowAction: false,
+                      bookingId: null,
+                      onConfirm: null,
+                    })
+                  }
+                  className="w-full py-2.5 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-medium transition cursor-pointer mt-1"
+                >
+                  Quay lại / Hủy bỏ
                 </button>
               </div>
             ) : (
@@ -458,16 +499,16 @@ export default function BookingsManager() {
                       onConfirm: null,
                     })
                   }
-                  className="px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium cursor-pointer"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium transition cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="button"
                   onClick={confirmModal.onConfirm}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium shadow-md cursor-pointer"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium shadow-xs transition cursor-pointer flex items-center gap-1.5"
                 >
-                  Xác nhận
+                  <Trash2 size={15} /> Xác nhận
                 </button>
               </div>
             )}
@@ -475,26 +516,34 @@ export default function BookingsManager() {
         </div>
       )}
 
+      {/* TIÊU ĐỀ BẢNG DIỀU KHIỂN */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-          <span>Quản Lý Lịch Đặt Sân</span>
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <span>Quản Lý Lịch Đặt Sân</span>
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Theo dõi, xác nhận cọc và quản lý lịch đặt sân theo thời gian thực
+          </p>
+        </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-md"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-4 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer shadow-xs text-sm"
         >
-          <Plus size={20} />{" "}
-          {showAddForm ? "Đóng Form Thêm Lịch" : "Thêm Lịch Thủ Công"}
+          {showAddForm ? <X size={18} /> : <Plus size={18} />}
+          {showAddForm ? "Đóng Form" : "Thêm Lịch Thủ Công"}
         </button>
       </div>
 
+      {/* FORM TẠO LỊCH ĐẶT */}
       {showAddForm && (
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-lg border border-slate-200 dark:border-slate-800 mb-8 animate-in fade-in duration-200">
-          <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200">
-              Form Tạo Lịch Đặt Sân (Chọn trực tiếp từ sơ đồ)
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-8">
+          <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <Sparkles size={18} className="text-emerald-500" /> Form Tạo Lịch
+              Đặt Sân (Chọn từ sơ đồ)
             </h2>
-            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer font-medium">
+            <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer font-medium select-none">
               <input
                 type="checkbox"
                 checked={isGuest}
@@ -509,7 +558,7 @@ export default function BookingsManager() {
                 }}
                 className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
               />
-              Khách vãng lai (Gọi điện đặt)
+              Khách vãng lai (Đặt qua điện thoại)
             </label>
           </div>
 
@@ -521,8 +570,7 @@ export default function BookingsManager() {
               value={courtId}
               onChange={(e) => setCourtId(e.target.value)}
               required
-              className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none text-slate-800 dark:text-white cursor-pointer"
-              style={{ colorScheme: "dark" }}
+              className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-sm outline-none text-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
             >
               <option
                 value=""
@@ -543,22 +591,34 @@ export default function BookingsManager() {
 
             {isGuest ? (
               <>
-                <input
-                  type="text"
-                  placeholder="Họ tên khách vãng lai"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  required
-                  className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl outline-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm"
-                />
-                <input
-                  type="text"
-                  placeholder="Số điện thoại khách vãng lai"
-                  value={guestPhone}
-                  onChange={(e) => setGuestPhone(e.target.value)}
-                  required
-                  className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl outline-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm"
-                />
+                <div className="relative">
+                  <User
+                    size={16}
+                    className="absolute left-3.5 top-3.5 text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Họ tên khách vãng lai"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                  />
+                </div>
+                <div className="relative">
+                  <Phone
+                    size={16}
+                    className="absolute left-3.5 top-3.5 text-slate-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Số điện thoại khách vãng lai"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-3 py-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                  />
+                </div>
               </>
             ) : (
               <div className="md:col-span-2 flex flex-col gap-1.5">
@@ -566,8 +626,7 @@ export default function BookingsManager() {
                   value={userId}
                   onChange={(e) => setUserId(e.target.value)}
                   required
-                  className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-sm outline-none text-slate-800 dark:text-white cursor-pointer"
-                  style={{ colorScheme: "dark" }}
+                  className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-sm outline-none text-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 >
                   <option
                     value=""
@@ -587,7 +646,6 @@ export default function BookingsManager() {
                   ))}
                 </select>
 
-                {/* Dòng hiển thị cảnh báo tinh tế ngay dưới ô chọn nếu khách có lịch sử bùng sân */}
                 {userId &&
                   (() => {
                     const selectedUserObj = users.find((u) => u._id === userId);
@@ -598,9 +656,10 @@ export default function BookingsManager() {
                     ) {
                       return (
                         <span className="text-xs text-amber-500 font-medium flex items-center gap-1 px-1">
-                          ⚠️ Khách hàng này có lịch sử bùng sân (
+                          <ShieldAlert size={14} className="shrink-0" />
+                          Khách hàng có lịch sử bùng sân (
                           {selectedUserObj.strikeCount || 0} lần). Hệ thống đã
-                          tự động yêu cầu cọc 100%.
+                          tự động bắt buộc cọc 100%.
                         </span>
                       );
                     }
@@ -614,10 +673,10 @@ export default function BookingsManager() {
               value={date}
               disabled
               required
-              className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl outline-none bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed"
+              className="p-3 border border-slate-200 dark:border-slate-800 rounded-xl outline-none bg-slate-100 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed"
             />
 
-            <div className="flex items-center gap-2 md:col-span-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 cursor-not-allowed">
+            <div className="flex items-center gap-2 md:col-span-2 bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 cursor-not-allowed">
               <div className="flex items-center gap-1.5 w-full">
                 <span className="text-xs text-slate-400 font-medium">Từ:</span>
                 <input
@@ -646,7 +705,7 @@ export default function BookingsManager() {
               placeholder="Tổng tiền"
               value={totalPrice ? `${totalPrice.toLocaleString()} đ` : "0 đ"}
               disabled
-              className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl outline-none bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed font-medium"
+              className="p-3 border border-slate-200 dark:border-slate-800 rounded-xl outline-none bg-slate-100 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 text-sm cursor-not-allowed font-semibold"
             />
 
             <input
@@ -662,15 +721,15 @@ export default function BookingsManager() {
                 setDepositAmount(rawValue === "" ? 0 : Number(rawValue));
               }}
               required
-              className="p-3 border border-slate-300 dark:border-slate-700 rounded-xl outline-none bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm font-medium"
+              className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
             />
 
             <button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium p-3 rounded-xl transition cursor-pointer shadow-md flex items-center justify-center gap-2 md:col-span-3"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium p-3 rounded-xl transition cursor-pointer shadow-xs flex items-center justify-center gap-2 md:col-span-3 text-sm"
             >
-              <Plus size={18} />{" "}
+              <CheckCircle2 size={18} />
               {loading ? "Đang xử lý..." : "Xác Nhận Giữ Sân"}
             </button>
           </form>
@@ -679,43 +738,42 @@ export default function BookingsManager() {
 
       {/* SƠ ĐỒ TRỰC QUAN */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-8 select-none">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-4 bg-slate-50 dark:bg-slate-900/50">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-              <Calendar size={20} className="text-emerald-600" /> Sơ Đồ Lịch Sân
+            <h2 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <Calendar size={18} className="text-emerald-600" /> Sơ Đồ Lịch Sân
               Trực Quan
             </h2>
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 px-3 py-1.5 rounded-xl">
+            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-xl">
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="bg-transparent outline-none text-sm text-slate-800 dark:text-white cursor-pointer"
-                style={{ colorScheme: "dark" }}
+                className="bg-transparent outline-none text-xs text-slate-800 dark:text-white cursor-pointer font-medium"
               />
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 dark:text-slate-300 font-medium">
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-white border border-slate-300"></span>{" "}
+              <span className="w-2.5 h-2.5 rounded-full bg-white border border-slate-300 dark:border-slate-700"></span>{" "}
               Trống
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-amber-400"></span> Chờ
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>{" "}
+              Chờ xác nhận
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Đã
               xác nhận
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-blue-500"></span> Đã xác
-              nhận
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>{" "}
+              Đang chơi
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-emerald-500"></span> Đang
-              chơi
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-purple-500"></span> Đã
-              hoàn thành
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>{" "}
+              Đã hoàn thành
             </div>
           </div>
         </div>
@@ -723,14 +781,14 @@ export default function BookingsManager() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-semibold">
+              <tr className="bg-slate-100/70 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 text-xs font-semibold">
                 <th className="p-3 text-left border-r border-slate-200 dark:border-slate-700 w-28 sticky left-0 bg-slate-100 dark:bg-slate-800 z-10">
                   Sân \ Giờ
                 </th>
                 {hours.map((h) => (
                   <th
                     key={h}
-                    className="p-2 border-r border-slate-200 dark:border-slate-700 text-center"
+                    className="p-2 border-r border-slate-200 dark:border-slate-700 text-center font-mono"
                   >
                     {h}:00
                   </th>
@@ -743,9 +801,9 @@ export default function BookingsManager() {
                   key={court._id}
                   className="border-b border-slate-200 dark:border-slate-800"
                 >
-                  <td className="p-3 font-semibold text-sm text-slate-800 dark:text-white border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-sm">
+                  <td className="p-3 font-semibold text-xs text-slate-800 dark:text-white border-r border-slate-200 dark:border-slate-700 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-xs">
                     {court.name}
-                    <div className="text-[10px] text-slate-400 font-normal">
+                    <div className="text-[10px] text-slate-400 font-normal mt-0.5">
                       {court.type}
                     </div>
                   </td>
@@ -789,7 +847,7 @@ export default function BookingsManager() {
                       >
                         {status !== "empty" && isStartCell && (
                           <div
-                            className="absolute inset-y-1.5 left-1.5 flex items-center px-2 font-semibold text-white drop-shadow-sm z-20 pointer-events-none overflow-hidden rounded-md"
+                            className="absolute inset-y-1.5 left-1.5 flex items-center px-2 font-semibold text-white drop-shadow-xs z-20 pointer-events-none overflow-hidden rounded-md"
                             style={{
                               width: `calc(${durationHours * 100}% + ${(durationHours - 1) * 12}px)`,
                             }}
@@ -811,20 +869,22 @@ export default function BookingsManager() {
 
       {/* DANH SÁCH CHI TIẾT */}
       <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-        <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-4">
-          Danh Sách Lịch Đặt Chi Tiết Ngày {selectedDate} (
-          {filteredBookings.length})
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-base font-semibold text-slate-800 dark:text-slate-200">
+            Danh Sách Lịch Đặt Chi Tiết Ngày {selectedDate} (
+            {filteredBookings.length})
+          </h2>
+        </div>
 
         {filteredBookings.length === 0 ? (
-          <p className="text-slate-400 italic py-4">
+          <p className="text-slate-400 italic py-6 text-center text-sm">
             Không có lịch đặt sân nào trong ngày này.
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-sm">
+                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">
                   <th className="p-3">Khách hàng</th>
                   <th className="p-3">Sân</th>
                   <th className="p-3">Ngày & Giờ</th>
@@ -845,7 +905,7 @@ export default function BookingsManager() {
                   return (
                     <tr
                       key={item._id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition"
+                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition"
                     >
                       <td className="p-3 font-semibold">
                         <div className="flex items-center gap-2">
@@ -855,32 +915,32 @@ export default function BookingsManager() {
                           />
                           <span>{customerName}</span>
                         </div>
-                        <div className="text-xs text-slate-400 font-normal pl-6">
+                        <div className="text-xs text-slate-400 font-normal pl-6 mt-0.5">
                           {customerPhone}{" "}
                           {item.user ? "(Thành viên)" : "(Vãng lai)"}
                         </div>
                       </td>
                       <td className="p-3">
-                        <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
-                          <MapPin size={16} />
+                        <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium text-xs">
+                          <MapPin size={14} />
                           {item.court?.name || "Sân"}
                         </div>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs text-slate-400 mt-0.5">
                           {item.court?.type}
                         </div>
                       </td>
                       <td className="p-3">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar size={15} className="text-slate-400" />
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Calendar size={14} className="text-slate-400" />
                           {item.date?.split("T")[0]}
                         </div>
                         <div className="flex items-center gap-1.5 font-mono text-xs text-slate-500 mt-0.5">
-                          <Clock size={15} className="text-slate-400" />
+                          <Clock size={14} className="text-slate-400" />
                           {item.startTime} - {item.endTime}
                         </div>
                       </td>
                       <td className="p-3">
-                        <div className="text-xs font-semibold">
+                        <div className="text-xs">
                           Tổng:{" "}
                           <span className="text-slate-800 dark:text-white font-bold">
                             {item.totalPrice?.toLocaleString()} đ
@@ -902,10 +962,10 @@ export default function BookingsManager() {
                             <>
                               <button
                                 onClick={() => handleConfirmDeposit(item._id)}
-                                className="px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
+                                className="px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition cursor-pointer text-xs font-medium flex items-center gap-1 shadow-xs"
                                 title="Xác nhận cọc"
                               >
-                                <CheckCircle size={14} /> Duyệt cọc
+                                <CheckCircle2 size={14} /> Duyệt cọc
                               </button>
 
                               <button
@@ -920,7 +980,7 @@ export default function BookingsManager() {
                                     onConfirm: null,
                                   });
                                 }}
-                                className="px-2.5 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
+                                className="px-2.5 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition cursor-pointer text-xs font-medium flex items-center gap-1 shadow-xs"
                                 title="Khách bùng sân"
                               >
                                 <AlertTriangle size={14} /> Bùng sân
@@ -932,7 +992,7 @@ export default function BookingsManager() {
                             <>
                               <button
                                 onClick={() => handleCheckIn(item._id)}
-                                className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
+                                className="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition cursor-pointer text-xs font-medium flex items-center gap-1 shadow-xs"
                                 title="Check-in cho khách"
                               >
                                 <CheckSquare size={14} /> Nhận sân
@@ -950,7 +1010,7 @@ export default function BookingsManager() {
                                     onConfirm: null,
                                   });
                                 }}
-                                className="px-2.5 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 cursor-pointer text-xs font-medium flex items-center gap-1 shadow-sm"
+                                className="px-2.5 py-1.5 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition cursor-pointer text-xs font-medium flex items-center gap-1 shadow-xs"
                                 title="Khách bùng sân"
                               >
                                 <AlertTriangle size={14} /> Bùng sân
@@ -967,10 +1027,10 @@ export default function BookingsManager() {
                                   `/bookings/${item._id}`,
                                 )
                               }
-                              className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 cursor-pointer"
+                              className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition cursor-pointer"
                               title="Xóa lịch"
                             >
-                              <Trash2 size={15} />
+                              <Trash2 size={16} />
                             </button>
                           )}
                         </div>

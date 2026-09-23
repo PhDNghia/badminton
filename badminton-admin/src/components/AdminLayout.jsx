@@ -1,4 +1,3 @@
-// badminton-admin/src/components/AdminLayout.jsx
 import { Outlet, useNavigate, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -23,6 +22,7 @@ import {
 import { useState, useEffect, useRef } from "react";
 import API from "../services/api";
 import { toast } from "react-toastify";
+import { io } from "socket.io-client";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -37,7 +37,6 @@ export default function AdminLayout() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // States quản lý ẩn/hiện mật khẩu cho 3 input trong modal đổi mật khẩu
   const [showOldPass, setShowOldPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
@@ -50,6 +49,64 @@ export default function AdminLayout() {
   };
 
   const isAdmin = adminUser.role?.toLowerCase() === "admin";
+
+  useEffect(() => {
+    const SOCKET_URL =
+      import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+
+    const socket = io(SOCKET_URL, {
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("NEW_BOOKING_ALERT", (data) => {
+      try {
+        const audio = new Audio(
+          "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
+        );
+        audio.play().catch(() => {});
+      } catch (err) {
+        console.error("Lỗi phát âm thanh:", err);
+      }
+
+      toast.info(
+        <div className="cursor-pointer">
+          <p className="font-bold text-sm">🔔 Đơn Đặt Sân Mới!</p>
+          <p className="text-xs mt-1">
+            Khách:{" "}
+            <span className="font-semibold">
+              {data?.guestName || data?.user?.name || "Khách vãng lai"}
+            </span>
+          </p>
+          {data?.court?.name && (
+            <p className="text-xs">
+              Sân: <span className="font-semibold">{data.court.name}</span>
+            </p>
+          )}
+          {data?.date && (
+            <p className="text-xs">
+              Ngày đặt: <span className="font-semibold">{data.date}</span>
+            </p>
+          )}
+          {data?.startTime && data?.endTime && (
+            <p className="text-xs">
+              Khung giờ:{" "}
+              <span className="font-semibold">
+                {data.startTime} - {data.endTime}
+              </span>
+            </p>
+          )}
+        </div>,
+        {
+          autoClose: 6000,
+          onClick: () => navigate("/bookings"),
+        },
+      );
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [navigate]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -92,7 +149,6 @@ export default function AdminLayout() {
       return;
     }
 
-    // Lấy ID từ adminUser đang lưu trong localStorage
     const adminUser = JSON.parse(localStorage.getItem("adminUser")) || {};
     const userId = adminUser._id || adminUser.id;
 
@@ -105,7 +161,7 @@ export default function AdminLayout() {
 
     try {
       const response = await API.put("/users/change-password", {
-        userId, // Gửi kèm userId này lên server
+        userId,
         oldPassword,
         newPassword,
       });
@@ -128,23 +184,19 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors duration-200">
-      {/* Sidebar bên trái: Cố định chiều cao màn hình, chữ to rõ, không có thanh cuộn */}
       <aside className="w-64 h-screen sticky top-0 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 flex flex-col p-4 shadow-xl border-r border-slate-200 dark:border-slate-800 transition-colors duration-200 select-none overflow-hidden">
-        {/* 1. Logo / Tiêu đề */}
         <div className="text-lg font-bold text-slate-800 dark:text-white mb-4 px-2 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            🏸 <span className="tracking-wide">Admin Portal</span>
+            <span className="tracking-wide">TONO BADMINTON</span>
           </div>
         </div>
 
-        {/* 2. Danh sách menu chính */}
         <nav className="space-y-4 flex-1 overflow-y-auto pr-0.5 [&::-webkit-scrollbar]:w-0">
           <div>
             <div className="px-3 mb-1.5 text-xs font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">
               Tổng Quan
             </div>
 
-            {/* Thống Kê Số Liệu - Chỉ Admin mới coi được, Staff bị disable */}
             <Link
               to={isAdmin ? "/" : "#"}
               onClick={(e) => {
@@ -173,7 +225,6 @@ export default function AdminLayout() {
               Quản Lý Chung
             </div>
             <div className="space-y-1">
-              {/* Quản Lý Sân - Chỉ Admin */}
               <Link
                 to={isAdmin ? "/courts" : "#"}
                 onClick={(e) => {
@@ -196,7 +247,6 @@ export default function AdminLayout() {
                 <span>Quản Lý Sân</span>
               </Link>
 
-              {/* Quản Lý Người Dùng - Chỉ Admin */}
               <Link
                 to={isAdmin ? "/users" : "#"}
                 onClick={(e) => {
@@ -219,7 +269,6 @@ export default function AdminLayout() {
                 <span>Quản Lý Người Dùng</span>
               </Link>
 
-              {/* Quản Lý Sản Phẩm - Chỉ Admin */}
               <Link
                 to={isAdmin ? "/products" : "#"}
                 onClick={(e) => {
@@ -242,7 +291,6 @@ export default function AdminLayout() {
                 <span>Quản Lý Sản Phẩm</span>
               </Link>
 
-              {/* Quản Lý Mã Giảm Giá - Chỉ Admin */}
               <Link
                 to={isAdmin ? "/discounts" : "#"}
                 onClick={(e) => {
@@ -323,7 +371,6 @@ export default function AdminLayout() {
           </div>
         </nav>
 
-        {/* 3. Phần dưới cùng: Thông tin user & Popup cài đặt cá nhân */}
         <div
           className="relative pt-3 border-t border-slate-200 dark:border-slate-800 flex-shrink-0 mt-2"
           ref={menuRef}
@@ -421,12 +468,10 @@ export default function AdminLayout() {
         </div>
       </aside>
 
-      {/* Phần nội dung chính bên phải */}
       <main className="flex-1 p-8 overflow-y-auto bg-slate-50 dark:bg-slate-950">
         <Outlet />
       </main>
 
-      {/* Modal Đổi Mật Khẩu (Có icon con mắt ẩn/hiện mật khẩu cho cả 3 input) */}
       {showChangePasswordModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-md overflow-hidden">
@@ -445,7 +490,6 @@ export default function AdminLayout() {
               onSubmit={handlePasswordChangeSubmit}
               className="p-6 space-y-4"
             >
-              {/* Mật khẩu cũ */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Mật khẩu cũ
@@ -469,7 +513,6 @@ export default function AdminLayout() {
                 </div>
               </div>
 
-              {/* Mật khẩu mới */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Mật khẩu mới
@@ -493,7 +536,6 @@ export default function AdminLayout() {
                 </div>
               </div>
 
-              {/* Xác nhận mật khẩu mới */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                   Xác nhận mật khẩu mới
@@ -537,7 +579,6 @@ export default function AdminLayout() {
         </div>
       )}
 
-      {/* Modal Thông Tin Phiên Bản */}
       {showVersionModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm text-center p-6">
@@ -554,7 +595,7 @@ export default function AdminLayout() {
               Phiên bản v1.4.0
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-              Đã tích hợp icon hiển thị mật khẩu tiện ích.
+              Tích hợp thông báo Socket.io Real-time toàn hệ thống.
             </p>
             <button
               onClick={() => setShowVersionModal(false)}

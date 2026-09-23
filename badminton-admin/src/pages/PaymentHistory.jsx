@@ -42,6 +42,10 @@ export default function PaymentHistory() {
 
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // ✅ Thêm state lưu phương thức thanh toán đang chọn trong Modal chi tiết
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState("Tiền mặt");
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
@@ -133,25 +137,25 @@ export default function PaymentHistory() {
 
     if (status === "forfeited_deposit" || status === "deposit_retained") {
       return (
-        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 flex items-center gap-1 w-fit mx-auto">
+        <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full uppercase bg-rose-100 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300 flex items-center gap-1 w-fit mx-auto">
           <CheckCircle2 size={12} /> Thu cọc do hủy sân
         </span>
       );
     } else if (status === "refunded") {
       return (
-        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1 w-fit mx-auto">
+        <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full uppercase bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 flex items-center gap-1 w-fit mx-auto">
           <CheckCircle2 size={12} /> Đã hoàn cọc
         </span>
       );
     } else if (status === "paid_full" || status === "paid") {
       return (
-        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 flex items-center gap-1 w-fit mx-auto">
+        <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 flex items-center gap-1 w-fit mx-auto">
           <CheckCircle2 size={12} /> Đã thanh toán
         </span>
       );
     } else {
       return (
-        <span className="px-3 py-1 text-xs font-semibold rounded-full uppercase bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 flex items-center gap-1 w-fit mx-auto">
+        <span className="px-2.5 py-1 text-[10px] font-semibold rounded-full uppercase bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 flex items-center gap-1 w-fit mx-auto">
           <Clock3 size={12} /> Chờ thanh toán
         </span>
       );
@@ -256,7 +260,44 @@ export default function PaymentHistory() {
 
   const handleOpenDetail = (invoice) => {
     setSelectedInvoice(invoice);
+    setSelectedPaymentMethod(formatPaymentMethod(invoice.paymentMethod));
     setIsModalOpen(true);
+  };
+
+  const handleUpdatePaymentMethod = async () => {
+    if (!selectedInvoice) return;
+    setIsUpdatingPayment(true);
+    try {
+      // ✅ Gửi thêm paymentStatus: "paid_full" để backend đổi trạng thái thành Đã thanh toán
+      const res = await API.put(`/invoices/${selectedInvoice._id}`, {
+        paymentMethod: selectedPaymentMethod,
+        paymentStatus: "paid_full",
+      });
+      if (res.data.success) {
+        toast.success("Cập nhật thanh toán thành công!");
+        // Cập nhật lại cả paymentMethod và paymentStatus ở state local
+        setPayments(
+          payments.map((p) =>
+            p._id === selectedInvoice._id
+              ? {
+                  ...p,
+                  paymentMethod: selectedPaymentMethod,
+                  paymentStatus: "paid_full",
+                }
+              : p,
+          ),
+        );
+        setIsModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Lỗi cập nhật phương thức thanh toán:", error);
+      toast.error(
+        error.response?.data?.message ||
+          "Không thể cập nhật phương thức thanh toán!",
+      );
+    } finally {
+      setIsUpdatingPayment(false);
+    }
   };
 
   const handleOpenDeleteModal = (e, invoice) => {
@@ -289,34 +330,40 @@ export default function PaymentHistory() {
   };
 
   return (
-    <div className="pb-12 relative">
-      <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-          <CreditCard className="text-emerald-600" /> Lịch Sử Thanh Toán & Thống
-          Kê
-        </h1>
+    <div className="w-full min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative transition-colors duration-200">
+      {/* HEADER TỔNG QUAN */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+            <CreditCard className="text-emerald-600" size={24} /> Lịch Sử Thanh
+            Toán & Thống Kê
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Theo dõi danh sách hóa đơn, doanh thu và phương thức thanh toán
+          </p>
+        </div>
       </div>
 
       {/* KHU VỰC BỘ LỌC */}
-      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-6 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
-            <Search size={18} className="text-slate-400 shrink-0" />
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 mb-6 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl">
+            <Search size={16} className="text-slate-400 shrink-0" />
             <input
               type="text"
               placeholder="Tìm theo tên khách, SĐT, tên sân..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-transparent outline-none text-sm text-slate-800 dark:text-white w-full"
+              className="bg-transparent outline-none text-xs text-slate-800 dark:text-white w-full"
             />
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
-            <Wallet size={18} className="text-slate-400 shrink-0" />
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl">
+            <Wallet size={16} className="text-slate-400 shrink-0" />
             <select
               value={paymentMethodFilter}
               onChange={(e) => setPaymentMethodFilter(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 outline-none text-sm text-slate-800 dark:text-white w-full cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 outline-none text-xs text-slate-800 dark:text-white w-full cursor-pointer"
             >
               <option value="all">Tất cả phương thức thanh toán</option>
               <option value="Tiền mặt">Tiền mặt</option>
@@ -324,12 +371,12 @@ export default function PaymentHistory() {
             </select>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl">
-            <Filter size={18} className="text-slate-400 shrink-0" />
+          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl">
+            <Filter size={16} className="text-slate-400 shrink-0" />
             <select
               value={timeFilterType}
               onChange={(e) => setTimeFilterType(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 outline-none text-sm text-slate-800 dark:text-white w-full cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 outline-none text-xs text-slate-800 dark:text-white w-full cursor-pointer"
             >
               <option value="all">Tất cả thời gian</option>
               <option value="day">Thống kê theo Ngày</option>
@@ -346,144 +393,138 @@ export default function PaymentHistory() {
         {(timeFilterType === "day" ||
           timeFilterType === "week" ||
           timeFilterType === "quarter") && (
-          <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <label className="text-xs font-semibold text-slate-500">
-              Chọn ngày mốc:
-            </label>
+          <div className="flex items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <label className="font-medium text-slate-500">Chọn ngày mốc:</label>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-xl text-slate-800 dark:text-white outline-none cursor-pointer"
               style={{ colorScheme: "dark" }}
             />
           </div>
         )}
 
         {timeFilterType === "month" && (
-          <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <label className="text-xs font-semibold text-slate-500">
-              Chọn tháng:
-            </label>
+          <div className="flex items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <label className="font-medium text-slate-500">Chọn tháng:</label>
             <input
               type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-xl text-slate-800 dark:text-white outline-none cursor-pointer"
               style={{ colorScheme: "dark" }}
             />
           </div>
         )}
 
         {timeFilterType === "year" && (
-          <div className="flex items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <label className="text-xs font-semibold text-slate-500">
-              Chọn năm:
-            </label>
+          <div className="flex items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <label className="font-medium text-slate-500">Chọn năm:</label>
             <input
               type="number"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none w-28"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-xl text-slate-800 dark:text-white outline-none w-28"
             />
           </div>
         )}
 
         {timeFilterType === "custom" && (
-          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <label className="text-xs font-semibold text-slate-500">
-              Từ ngày:
-            </label>
+          <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <label className="font-medium text-slate-500">Từ ngày:</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-xl text-slate-800 dark:text-white outline-none cursor-pointer"
               style={{ colorScheme: "dark" }}
             />
-            <label className="text-xs font-semibold text-slate-500">
-              Đến ngày:
-            </label>
+            <label className="font-medium text-slate-500">Đến ngày:</label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-lg text-slate-800 dark:text-white outline-none cursor-pointer"
+              className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs px-3 py-1.5 rounded-xl text-slate-800 dark:text-white outline-none cursor-pointer"
               style={{ colorScheme: "dark" }}
             />
           </div>
         )}
       </div>
 
+      {/* THẺ TỔNG QUAN DOANH THU */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 p-5 rounded-2xl flex items-center justify-between">
           <div>
             <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide">
               Tổng doanh thu ({getTimeFilterLabel()})
             </div>
-            <div className="text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-1">
+            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 mt-1">
               {totalRevenue.toLocaleString()} đ
             </div>
           </div>
-          <div className="bg-emerald-500 text-white p-3 rounded-xl shadow-sm">
-            <DollarSign size={28} />
+          <div className="bg-emerald-600 text-white p-3 rounded-xl shadow-xs">
+            <DollarSign size={24} />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-2xl flex items-center justify-between shadow-xs">
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
               Tổng số lượng giao dịch
             </div>
-            <div className="text-3xl font-extrabold text-slate-800 dark:text-white mt-1">
+            <div className="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white mt-1">
               {filteredPayments.length}{" "}
-              <span className="text-base font-normal text-slate-400">
+              <span className="text-xs font-normal text-slate-400">
                 giao dịch
               </span>
             </div>
           </div>
-          <div className="bg-blue-500 text-white p-3 rounded-xl shadow-sm">
-            <ReceiptText size={28} />
+          <div className="bg-emerald-600 text-white p-3 rounded-xl shadow-xs">
+            <ReceiptText size={24} />
           </div>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-        <h2 className="text-xl font-semibold text-slate-700 dark:text-slate-200 mb-4">
-          Danh Sách Giao Dịch Chi Tiết ({filteredPayments.length})
-        </h2>
+      {/* BẢNG DANH SÁCH GIAO DỊCH */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="p-5 border-b border-slate-100 dark:border-slate-800">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Danh Sách Giao Dịch Chi Tiết ({filteredPayments.length})
+          </h2>
+        </div>
 
         {loading ? (
-          <p className="text-slate-400 italic py-4">
+          <p className="text-slate-400 italic py-8 text-center text-xs">
             Đang tải dữ liệu thanh toán...
           </p>
         ) : filteredPayments.length === 0 ? (
           <div className="text-center py-12">
             <ReceiptText
               className="mx-auto text-slate-300 dark:text-slate-700 mb-2"
-              size={48}
+              size={40}
             />
-            <p className="text-slate-400 italic">
+            <p className="text-slate-400 italic text-xs">
               Không tìm thấy lịch sử thanh toán nào phù hợp với bộ lọc thời gian
               này.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-sm">
-                  <th className="p-3">Khách hàng</th>
-                  <th className="p-3">Sân cầu lông</th>
-                  <th className="p-3">Thời gian chơi</th>
-                  <th className="p-3">Phương thức</th>
-                  <th className="p-3">Tổng doanh thu hóa đơn</th>
-                  <th className="p-3">Thu tại quầy</th>
-                  <th className="p-3 text-center">Trạng thái</th>
-                  <th className="p-3 text-center">Hành động</th>
+                <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
+                  <th className="p-3.5">Khách hàng</th>
+                  <th className="p-3.5">Sân cầu lông</th>
+                  <th className="p-3.5">Thời gian chơi</th>
+                  <th className="p-3.5">Phương thức</th>
+                  <th className="p-3.5">Tổng doanh thu hóa đơn</th>
+                  <th className="p-3.5">Thu tại quầy</th>
+                  <th className="p-3.5 text-center">Trạng thái</th>
+                  <th className="p-3.5 text-right">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 text-sm">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {filteredPayments.map((item) => {
                   const customerName = item.customerName || "Khách lẻ";
                   const customerPhone = item.phone || "Không có SĐT";
@@ -495,59 +536,59 @@ export default function PaymentHistory() {
                   return (
                     <tr
                       key={item._id}
-                      className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition cursor-pointer"
+                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition"
                     >
-                      <td className="p-3 font-semibold">
-                        <div className="flex items-center gap-2">
+                      <td className="p-3.5 font-semibold">
+                        <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
                           <User
-                            size={16}
+                            size={15}
                             className="text-emerald-500 shrink-0"
                           />
-                          <span>{customerName}</span>
+                          <span className="font-bold">{customerName}</span>
                         </div>
-                        <div className="text-xs text-slate-400 font-normal pl-6">
-                          SĐT: {customerPhone}
+                        <div className="text-[11px] text-slate-400 font-normal pl-5 mt-0.5 font-mono">
+                          {customerPhone}
                         </div>
                       </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 font-medium">
-                          <MapPin size={16} />
+                      <td className="p-3.5">
+                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                          <MapPin size={15} className="shrink-0" />
                           {item.court?.name || "Sân"}
                         </div>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-[11px] text-slate-400">
                           {item.court?.type}
                         </div>
                       </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <Calendar size={14} className="text-slate-400" />
+                      <td className="p-3.5">
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-300">
+                          <Calendar size={13} className="text-slate-400" />
                           {bookingInfo.date
                             ? bookingInfo.date.split("T")[0]
                             : "N/A"}
                         </div>
-                        <div className="flex items-center gap-1.5 font-mono text-xs text-slate-500 mt-0.5">
-                          <Clock size={14} className="text-slate-400" />
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          <Clock size={13} className="text-slate-400" />
                           {bookingInfo.startTime || "--:--"} -{" "}
                           {bookingInfo.endTime || "--:--"}
                         </div>
                       </td>
-                      <td className="p-3">
-                        <div className="space-y-1.5 py-1">
+                      <td className="p-3.5">
+                        <div className="space-y-1">
                           <div>
                             <span
-                              className={`inline-block px-2.5 py-1 text-xs font-semibold rounded-lg shadow-sm ${
+                              className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-lg ${
                                 formatPaymentMethod(item.paymentMethod) ===
                                 "Tiền mặt"
-                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                  : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                  : "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
                               }`}
                             >
                               {formatPaymentMethod(item.paymentMethod)}
                             </span>
                           </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <div className="text-[10px] text-slate-400 flex items-center gap-1">
                             <span>Thu ngân:</span>
-                            <span className="text-slate-700 dark:text-slate-200 font-medium">
+                            <span className="text-slate-700 dark:text-slate-300 font-medium">
                               {item.cashierName &&
                               !item.cashierName.includes("currentCashierName")
                                 ? item.cashierName
@@ -557,40 +598,37 @@ export default function PaymentHistory() {
                         </div>
                       </td>
 
-                      <td className="p-3 font-bold text-slate-800 dark:text-white">
+                      <td className="p-3.5 font-bold text-slate-800 dark:text-white">
                         {finalRevenue.toLocaleString()} đ
                       </td>
 
-                      <td className="p-3 font-bold text-emerald-600 dark:text-emerald-400">
+                      <td className="p-3.5 font-bold text-emerald-600 dark:text-emerald-400">
                         {actualPayAtCounter.toLocaleString()} đ
                         <div className="text-[10px] font-normal text-slate-400">
                           (Thu tại quầy)
                         </div>
                       </td>
 
-                      <td className="p-3 text-center">
+                      <td className="p-3.5 text-center">
                         {renderPaymentStatus(item)}
                       </td>
-                      <td className="p-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="p-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenDetail(item);
-                            }}
-                            className="p-2 hover:bg-emerald-50 dark:hover:bg-slate-800 text-emerald-600 dark:text-emerald-400 rounded-xl transition inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
+                            onClick={() => handleOpenDetail(item)}
+                            className="p-1.5 text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
                             title="Xem chi tiết"
                           >
-                            <Eye size={16} />
+                            <Eye size={15} />
                           </button>
 
                           {isAdmin && (
                             <button
                               onClick={(e) => handleOpenDeleteModal(e, item)}
-                              className="p-2 hover:bg-rose-50 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400 rounded-xl transition inline-flex items-center gap-1 text-xs font-medium cursor-pointer"
+                              className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
                               title="Xóa hóa đơn"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={15} />
                             </button>
                           )}
                         </div>
@@ -606,24 +644,24 @@ export default function PaymentHistory() {
 
       {/* MODAL CHI TIẾT HÓA ĐƠN */}
       {isModalOpen && selectedInvoice && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-xs">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <ReceiptText className="text-emerald-600" size={24} />
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+                <ReceiptText className="text-emerald-600" size={20} />
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white">
                   Chi Tiết Hóa Đơn Sân Cầu Lông
                 </h3>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl transition cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="p-6 space-y-5 text-sm max-h-[75vh] overflow-y-auto">
+            <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl space-y-2 border border-slate-100 dark:border-slate-800">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Khách hàng:</span>
@@ -634,7 +672,7 @@ export default function PaymentHistory() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Sân đặt:</span>
-                  <span className="font-semibold text-blue-600 dark:text-blue-400">
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                     {selectedInvoice.court?.name || "Sân"} -{" "}
                     {selectedInvoice.court?.type || "Sân chuẩn"}
                   </span>
@@ -657,13 +695,13 @@ export default function PaymentHistory() {
               </div>
 
               {/* DANH SÁCH CHI TIẾT SÂN & SẢN PHẨM & VOUCHER */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 text-xs uppercase tracking-wider">
-                  <Info size={14} className="text-emerald-500" /> Chi tiết tiền
+              <div className="space-y-2">
+                <h4 className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 uppercase tracking-wider text-[10px]">
+                  <Info size={13} className="text-emerald-500" /> Chi tiết tiền
                   sân & sản phẩm phát sinh:
                 </h4>
                 <div className="border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
-                  <div className="flex justify-between items-center p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs">
+                  <div className="flex justify-between items-center p-3 bg-slate-50/50 dark:bg-slate-800/20">
                     <span className="text-slate-600 dark:text-slate-300">
                       Tiền sân ({selectedInvoice.court?.name || "Sân"})
                     </span>
@@ -676,21 +714,21 @@ export default function PaymentHistory() {
                     selectedInvoice.items.map((item, idx) => (
                       <div
                         key={idx}
-                        className="flex justify-between items-center p-3 bg-slate-50/50 dark:bg-slate-800/20 text-xs"
+                        className="flex justify-between items-center p-3 bg-slate-50/50 dark:bg-slate-800/20"
                       >
                         <div className="flex items-center gap-2">
                           <span className="text-slate-600 dark:text-slate-300">
                             {item.name}{" "}
-                            <span className="text-slate-400">
+                            <span className="text-slate-400 font-mono">
                               ({item.quantity}x)
                             </span>
                           </span>
                           {item.isPaid ? (
-                            <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 rounded font-medium">
+                            <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 rounded font-medium">
                               Đã trả lẻ
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 rounded font-medium">
+                            <span className="px-1.5 py-0.5 text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 rounded font-medium">
                               Chưa trả
                             </span>
                           )}
@@ -704,14 +742,14 @@ export default function PaymentHistory() {
                       </div>
                     ))
                   ) : (
-                    <div className="p-3 text-xs text-slate-400 italic text-center">
+                    <div className="p-3 text-slate-400 italic text-center">
                       Không có sản phẩm phát sinh đi kèm.
                     </div>
                   )}
 
                   {(selectedInvoice.discountAmount > 0 ||
                     selectedInvoice.discountCode) && (
-                    <div className="flex justify-between items-center p-3 bg-emerald-50/30 dark:bg-emerald-950/20 text-xs">
+                    <div className="flex justify-between items-center p-3 bg-emerald-50/30 dark:bg-emerald-950/20">
                       <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                         Giảm giá Voucher:{" "}
                         <strong className="underline">
@@ -738,18 +776,23 @@ export default function PaymentHistory() {
                   actualPayAtCounter,
                 } = calculateInvoiceAmounts(selectedInvoice);
 
+                const isPendingPayment =
+                  selectedInvoice.paymentStatus !== "paid_full" &&
+                  selectedInvoice.paymentStatus !== "paid" &&
+                  selectedInvoice.paymentStatus !== "refunded";
+
                 return (
                   <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 p-4 rounded-xl space-y-2">
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between">
                       <span className="text-slate-600 dark:text-slate-400 font-medium">
                         Tổng doanh thu hóa đơn:
                       </span>
-                      <span className="font-bold text-slate-800 dark:text-white text-base">
+                      <span className="font-bold text-slate-800 dark:text-white text-sm">
                         {finalRevenue.toLocaleString()} đ
                       </span>
                     </div>
                     {discount > 0 && (
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">
                           Voucher:
                         </span>
@@ -759,7 +802,7 @@ export default function PaymentHistory() {
                       </div>
                     )}
                     {prepaidItems > 0 && (
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">
                           Các món đã thanh toán lẻ trước:
                         </span>
@@ -769,7 +812,7 @@ export default function PaymentHistory() {
                       </div>
                     )}
                     {deposit > 0 && (
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">
                           Đã cọc trước:
                         </span>
@@ -778,23 +821,39 @@ export default function PaymentHistory() {
                         </span>
                       </div>
                     )}
-                    <div className="flex justify-between text-sm border-t border-emerald-200 dark:border-emerald-900 pt-2">
+                    <div className="flex justify-between border-t border-emerald-200 dark:border-emerald-900 pt-2">
                       <span className="text-emerald-800 dark:text-emerald-300 font-bold">
                         Tiền khách thanh toán cuối giờ
                       </span>
-                      <span className="font-bold text-emerald-700 dark:text-emerald-300 text-base">
+                      <span className="font-bold text-emerald-700 dark:text-emerald-300 text-sm">
                         {actualPayAtCounter.toLocaleString()} đ
                       </span>
                     </div>
-                    <div className="flex justify-between text-sm items-center pt-1">
+
+                    {/* KHU VỰC CHỌN HOẶC HIỂN THỊ PHƯƠNG THỨC THANH TOÁN */}
+                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200 dark:border-emerald-900">
                       <span className="text-slate-600 dark:text-slate-400 font-medium">
                         Hình thức thanh toán:
                       </span>
-                      <span className="font-semibold text-slate-800 dark:text-white">
-                        {formatPaymentMethod(selectedInvoice.paymentMethod)}
-                      </span>
+                      {isPendingPayment ? (
+                        <select
+                          value={selectedPaymentMethod}
+                          onChange={(e) =>
+                            setSelectedPaymentMethod(e.target.value)
+                          }
+                          className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-800 dark:text-white font-semibold outline-none cursor-pointer"
+                        >
+                          <option value="Tiền mặt">Tiền mặt</option>
+                          <option value="Chuyển khoản">Chuyển khoản</option>
+                        </select>
+                      ) : (
+                        <span className="font-semibold text-slate-800 dark:text-white">
+                          {formatPaymentMethod(selectedInvoice.paymentMethod)}
+                        </span>
+                      )}
                     </div>
-                    <div className="flex justify-between text-sm items-center pt-1">
+
+                    <div className="flex justify-between items-center pt-1">
                       <span className="text-slate-600 dark:text-slate-400 font-medium">
                         Trạng thái:
                       </span>
@@ -805,13 +864,26 @@ export default function PaymentHistory() {
               })()}
             </div>
 
-            <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl text-sm font-medium transition cursor-pointer"
+                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl font-medium transition cursor-pointer"
               >
                 Đóng
               </button>
+
+              {/* Nút lưu thay đổi phương thức nếu hóa đơn đang ở trạng thái chờ thanh toán */}
+              {selectedInvoice.paymentStatus !== "paid_full" &&
+                selectedInvoice.paymentStatus !== "paid" &&
+                selectedInvoice.paymentStatus !== "refunded" && (
+                  <button
+                    onClick={handleUpdatePaymentMethod}
+                    disabled={isUpdatingPayment}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium transition cursor-pointer disabled:opacity-50"
+                  >
+                    {isUpdatingPayment ? "Đang lưu..." : "Lưu phương thức"}
+                  </button>
+                )}
             </div>
           </div>
         </div>
@@ -819,51 +891,41 @@ export default function PaymentHistory() {
 
       {/* MODAL XÁC NHẬN XÓA HÓA ĐƠN */}
       {isDeleteModalOpen && invoiceToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="text-rose-600" size={24} />
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white">
-                  Xác Nhận Xóa Hóa Đơn
-                </h3>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-center p-6">
+            <div className="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-500 flex items-center justify-center mx-auto mb-4 border border-rose-100 dark:border-rose-900/40">
+              <AlertTriangle size={24} />
+            </div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-white mb-2">
+              Xác Nhận Xóa Hóa Đơn
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+              Bạn có chắc chắn muốn xóa lịch sử thanh toán của khách hàng{" "}
+              <strong className="text-slate-800 dark:text-white">
+                {invoiceToDelete.customerName || "Khách lẻ"}
+              </strong>{" "}
+              (Sân:{" "}
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                {invoiceToDelete.court?.name || "N/A"}
+              </span>
+              ) không?
+            </p>
+            <div className="flex justify-center gap-3">
               <button
+                type="button"
                 onClick={() => !isDeleting && setIsDeleteModalOpen(false)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl transition cursor-pointer"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 text-sm">
-              <p className="text-slate-600 dark:text-slate-300">
-                Bạn có chắc chắn muốn xóa lịch sử thanh toán của khách hàng{" "}
-                <strong className="text-slate-800 dark:text-white">
-                  {invoiceToDelete.customerName || "Khách lẻ"}
-                </strong>{" "}
-                (Sân:{" "}
-                <span className="text-blue-600 dark:text-blue-400 font-semibold">
-                  {invoiceToDelete.court?.name || "N/A"}
-                </span>
-                ) không?
-              </p>
-            </div>
-
-            <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
-              <button
-                onClick={() => setIsDeleteModalOpen(false)}
                 disabled={isDeleting}
-                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-xl text-sm font-medium transition cursor-pointer disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 font-medium text-xs transition cursor-pointer disabled:opacity-50"
               >
-                Hủy
+                Hủy bỏ
               </button>
               <button
+                type="button"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-medium transition flex items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-xl hover:bg-rose-700 font-medium text-xs shadow-xs transition cursor-pointer disabled:opacity-50"
               >
-                {isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
+                {isDeleting ? "Đang xóa..." : "Xác nhận"}
               </button>
             </div>
           </div>
