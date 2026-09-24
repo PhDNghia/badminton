@@ -14,7 +14,6 @@ import {
   Tag,
   CircleDot,
   Receipt,
-  X,
 } from "lucide-react";
 
 import CheckoutModal from "../components/CheckoutModal";
@@ -35,7 +34,7 @@ export default function BillingManager() {
 
   // State quản lý Voucher
   const [voucherCode, setVoucherCode] = useState("");
-  const [appliedVoucher, setAppliedVoucher] = useState(null); // Lưu thông tin voucher đang áp dụng
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
   const [discountAmount, setDiscountAmount] = useState(0);
 
   const showNotification = (message, type = "success") => {
@@ -73,11 +72,37 @@ export default function BillingManager() {
 
   const handleSelectBooking = async (booking) => {
     setSelectedBooking(booking);
-    setActualStartTime(booking.startTime || "19:00");
-    setActualEndTime(booking.endTime || "22:00");
     setVoucherCode("");
     setAppliedVoucher(null);
     setDiscountAmount(0);
+
+    // Kiểm tra xem sân này đã có lưu nháp giờ chỉnh sửa trong sessionStorage chưa
+    const savedDraft = sessionStorage.getItem(`billing_draft_${booking._id}`);
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft);
+        setActualStartTime(parsed.actualStart || "19:00");
+        setActualEndTime(parsed.actualEnd || booking.endTime || "22:00");
+      } catch (e) {
+        setDefaultCheckInTime(booking);
+      }
+    } else {
+      // 🔥 NẾU ĐÃ CÓ CHECKINTIME LÚC BẤM NHẬN SÂN THÌ LẤY NÓ, CÒN KHÔNG THÌ LẤY GIỜ HIỆN TẠI
+      if (booking.checkInTime) {
+        const checkInDate = new Date(booking.checkInTime);
+        const hours = String(checkInDate.getHours()).padStart(2, "0");
+        const minutes = String(checkInDate.getMinutes()).padStart(2, "0");
+        setActualStartTime(`${hours}:${minutes}`);
+      } else {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, "0");
+        const minutes = String(now.getMinutes()).padStart(2, "0");
+        setActualStartTime(`${hours}:${minutes}`);
+      }
+
+      // Giờ kết thúc luôn mặc định lấy theo giờ trên đơn đặt của khách
+      setActualEndTime(booking.endTime || "22:00");
+    }
 
     try {
       const res = await API.get(`/invoices/booking/${booking._id}`);
@@ -89,6 +114,20 @@ export default function BillingManager() {
       showNotification("Không thể tải thông tin hóa đơn của sân này!", "error");
     }
   };
+
+  // 🔥 TỰ ĐỘNG LƯU NHÁP GIỜ THỰC TẾ VÀO SESSIONSTORAGE KHI CÓ THAY ĐỔI
+  useEffect(() => {
+    if (selectedBooking && selectedBooking._id) {
+      const draftData = {
+        actualStart: actualStartTime,
+        actualEnd: actualEndTime,
+      };
+      sessionStorage.setItem(
+        `billing_draft_${selectedBooking._id}`,
+        JSON.stringify(draftData),
+      );
+    }
+  }, [actualStartTime, actualEndTime, selectedBooking]);
 
   const handleSetCurrentTime = (type) => {
     const now = new Date();
@@ -185,6 +224,8 @@ export default function BillingManager() {
     }
   };
 
+  // 🔥 THUẬT TOÁN TÍNH TIỀN SÂN THEO ĐÚNG KHUNG GIỜ
+  // 0h - 5h: 60k/h | 6h - 16h: 30k/h | 17h - 23h: 60k/h
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
     const parts = timeStr.split(":");
@@ -193,38 +234,48 @@ export default function BillingManager() {
     return h * 60 + m;
   };
 
-  const calculateBookingDurationMinutes = (start, end) => {
-    const startMins = timeToMinutes(start);
-    let endMins = timeToMinutes(end);
-    if (endMins <= startMins) endMins += 24 * 60;
-    const diff = endMins - startMins;
-    return diff > 0 ? diff : 120;
+  const calculateCourtFeeByHours = (startStr, endStr) => {
+    if (!startStr || !endStr) return 0;
+
+    const startMins = timeToMinutes(startStr);
+    let endMins = timeToMinutes(endStr);
+
+    if (endMins <= startMins) {
+      endMins += 24 * 60;
+    }
+
+    let totalFee = 0;
+    let currentMins = startMins;
+
+    while (currentMins < endMins) {
+      const hourOfDay = Math.floor((currentMins / 60) % 24);
+
+      let hourlyRate = 30000;
+      if (hourOfDay >= 0 && hourOfDay <= 5) {
+        hourlyRate = 60000; // 0h - 5h: 60k
+      } else if (hourOfDay >= 6 && hourOfDay <= 16) {
+        hourlyRate = 30000; // 6h - 16h: 30k
+      } else {
+        hourlyRate = 60000; // 17h - 23h: 60k
+      }
+
+      const nextHourMins = Math.min(
+        Math.ceil((currentMins + 1) / 60) * 60,
+        endMins,
+      );
+      const durationInThisHour = nextHourMins - currentMins;
+
+      totalFee += (hourlyRate / 60) * durationInThisHour;
+      currentMins = nextHourMins;
+    }
+
+    return Math.round(totalFee);
   };
 
-  const calculateActualMinutes = () => {
-    const startMins = timeToMinutes(actualStartTime);
-    let endMins = timeToMinutes(actualEndTime);
-    if (endMins <= startMins) endMins += 24 * 60;
-    const diff = endMins - startMins;
-    return diff > 0 ? diff : 0;
-  };
-
-  const baseCourtFee = currentInvoice
-    ? currentInvoice.courtFee
-    : selectedBooking?.totalPrice || 0;
-  const originalDurationMins = selectedBooking
-    ? calculateBookingDurationMinutes(
-        selectedBooking.startTime,
-        selectedBooking.endTime,
-      )
-    : 120;
-  const pricePerMinute =
-    originalDurationMins > 0
-      ? baseCourtFee / originalDurationMins
-      : 100000 / 120;
-
-  const actualMinutesPlayed = calculateActualMinutes();
-  const totalCourtFee = Math.round(actualMinutesPlayed * pricePerMinute);
+  const totalCourtFee = calculateCourtFeeByHours(
+    actualStartTime,
+    actualEndTime,
+  );
 
   const depositPaid =
     currentInvoice?.depositPaid ||
@@ -242,7 +293,6 @@ export default function BillingManager() {
 
   const totalBill = totalCourtFee + productsTotal;
 
-  // Sửa lại hàm handleApplyVoucher gọi trực tiếp API backend /discounts/apply
   const handleApplyVoucher = async () => {
     if (!voucherCode.trim()) {
       showNotification("Vui lòng nhập mã voucher!", "error");
@@ -278,7 +328,6 @@ export default function BillingManager() {
     }
   };
 
-  // Tự động tính toán lại mức giảm nếu tổng bill thay đổi (khi gọi thêm nước, đổi giờ sân...)
   useEffect(() => {
     if (appliedVoucher) {
       const minOrder =
@@ -325,14 +374,13 @@ export default function BillingManager() {
     }
 
     try {
-      // Gửi đầy đủ thông tin thanh toán, bao gồm mã giảm giá và số tiền được giảm lên backend
       await API.put(`/invoices/${currentInvoice._id}`, {
         paymentStatus: "paid_full",
         paymentMethod: method,
         cashierName: cashierName,
         depositPaid: depositPaid,
         discountAmount: discountAmount,
-        discountCode: appliedVoucher ? appliedVoucher.code : null, // Sửa voucherCode thành discountCode
+        discountCode: appliedVoucher ? appliedVoucher.code : null,
       });
 
       const methodNames = {
@@ -345,7 +393,11 @@ export default function BillingManager() {
         `Thanh toán thành công (${methodNameText}) và lưu hóa đơn thành công!`,
       );
 
-      // Reset lại trạng thái sau khi thanh toán xong
+      // Xóa dữ liệu nháp của sân này khi thanh toán xong
+      if (selectedBooking?._id) {
+        sessionStorage.removeItem(`billing_draft_${selectedBooking._id}`);
+      }
+
       setSelectedBooking(null);
       setCurrentInvoice(null);
       setVoucherCode("");
@@ -365,7 +417,6 @@ export default function BillingManager() {
 
   return (
     <div className="w-full min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative transition-colors duration-200">
-      {/* THÔNG BÁO POPUP */}
       {notification.message && (
         <div className="fixed top-6 right-6 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div
@@ -383,7 +434,6 @@ export default function BillingManager() {
         </div>
       )}
 
-      {/* HEADER TỔNG QUAN */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
           <ShoppingCart className="text-emerald-600" size={24} /> Quản Lý Hóa

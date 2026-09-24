@@ -18,6 +18,10 @@ import {
   Info,
   Trash2,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -40,9 +44,12 @@ export default function PaymentHistory() {
   const [endDate, setEndDate] = useState("");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
 
+  // State Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // ✅ Thêm state lưu phương thức thanh toán đang chọn trong Modal chi tiết
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState("Tiền mặt");
   const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
@@ -240,6 +247,28 @@ export default function PaymentHistory() {
     endDate,
   ]);
 
+  // Reset về trang 1 khi thay đổi bộ lọc hoặc tìm kiếm
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchTerm,
+    paymentMethodFilter,
+    timeFilterType,
+    selectedDate,
+    selectedMonth,
+    selectedYear,
+    startDate,
+    endDate,
+  ]);
+
+  // Tính toán dữ liệu phân trang
+  const totalItems = filteredPayments.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const currentTableData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredPayments.slice(startIndex, startIndex + pageSize);
+  }, [filteredPayments, currentPage, pageSize]);
+
   const totalRevenue = useMemo(() => {
     return filteredPayments.reduce((acc, curr) => {
       const { finalRevenue } = calculateInvoiceAmounts(curr);
@@ -268,14 +297,12 @@ export default function PaymentHistory() {
     if (!selectedInvoice) return;
     setIsUpdatingPayment(true);
     try {
-      // ✅ Gửi thêm paymentStatus: "paid_full" để backend đổi trạng thái thành Đã thanh toán
       const res = await API.put(`/invoices/${selectedInvoice._id}`, {
         paymentMethod: selectedPaymentMethod,
         paymentStatus: "paid_full",
       });
       if (res.data.success) {
         toast.success("Cập nhật thanh toán thành công!");
-        // Cập nhật lại cả paymentMethod và paymentStatus ở state local
         setPayments(
           payments.map((p) =>
             p._id === selectedInvoice._id
@@ -328,6 +355,79 @@ export default function PaymentHistory() {
       setIsDeleting(false);
     }
   };
+
+  // Component thanh phân trang dùng chung để tái sử dụng ở trên và dưới
+  const renderPaginationBar = () => (
+    <div className="flex flex-wrap items-center justify-between gap-4 py-3 px-4 text-xs text-slate-600 dark:text-slate-300 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 my-2">
+      <div className="flex items-center gap-2">
+        <span>Hiển thị:</span>
+        <select
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setCurrentPage(1);
+          }}
+          className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 rounded-lg outline-none text-slate-800 dark:text-white cursor-pointer font-medium"
+        >
+          <option value={5}>5</option>
+          <option value={10}>10</option>
+          <option value={20}>20</option>
+          <option value={50}>50</option>
+        </select>
+        <span>
+          bản ghi / trang (Tổng: <strong>{totalItems}</strong>)
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <span className="font-medium">
+          Trang{" "}
+          <strong className="text-emerald-600 dark:text-emerald-400">
+            {currentPage}
+          </strong>{" "}
+          / {totalPages}
+        </span>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer text-slate-700 dark:text-slate-200 shadow-2xs"
+            title="Về trang đầu"
+          >
+            <ChevronsLeft size={15} />
+          </button>
+
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={currentPage === 1}
+            className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer text-slate-700 dark:text-slate-200 shadow-2xs"
+            title="Trang trước"
+          >
+            <ChevronLeft size={15} />
+          </button>
+
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            disabled={currentPage >= totalPages}
+            className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer text-slate-700 dark:text-slate-200 shadow-2xs"
+            title="Trang sau"
+          >
+            <ChevronRight size={15} />
+          </button>
+
+          <button
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage >= totalPages}
+            className="p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition cursor-pointer text-slate-700 dark:text-slate-200 shadow-2xs"
+            title="Về trang cuối"
+          >
+            <ChevronsRight size={15} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="w-full min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative transition-colors duration-200">
@@ -487,12 +587,15 @@ export default function PaymentHistory() {
       </div>
 
       {/* BẢNG DANH SÁCH GIAO DỊCH */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Danh Sách Giao Dịch Chi Tiết ({filteredPayments.length})
           </h2>
         </div>
+
+        {/* THANH PHÂN TRANG ĐẶT Ở TRÊN ĐẦU ĐỂ DỄ DÀNG THAY ĐỔI */}
+        {!loading && filteredPayments.length > 0 && renderPaginationBar()}
 
         {loading ? (
           <p className="text-slate-400 italic py-8 text-center text-xs">
@@ -510,135 +613,140 @@ export default function PaymentHistory() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
-                  <th className="p-3.5">Khách hàng</th>
-                  <th className="p-3.5">Sân cầu lông</th>
-                  <th className="p-3.5">Thời gian chơi</th>
-                  <th className="p-3.5">Phương thức</th>
-                  <th className="p-3.5">Tổng doanh thu hóa đơn</th>
-                  <th className="p-3.5">Thu tại quầy</th>
-                  <th className="p-3.5 text-center">Trạng thái</th>
-                  <th className="p-3.5 text-right">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {filteredPayments.map((item) => {
-                  const customerName = item.customerName || "Khách lẻ";
-                  const customerPhone = item.phone || "Không có SĐT";
-                  const bookingInfo = item.booking || {};
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
+                    <th className="p-3.5">Khách hàng</th>
+                    <th className="p-3.5">Sân cầu lông</th>
+                    <th className="p-3.5">Thời gian chơi</th>
+                    <th className="p-3.5">Phương thức</th>
+                    <th className="p-3.5">Tổng doanh thu hóa đơn</th>
+                    <th className="p-3.5">Thu tại quầy</th>
+                    <th className="p-3.5 text-center">Trạng thái</th>
+                    <th className="p-3.5 text-right">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                  {currentTableData.map((item) => {
+                    const customerName = item.customerName || "Khách lẻ";
+                    const customerPhone = item.phone || "Không có SĐT";
+                    const bookingInfo = item.booking || {};
 
-                  const { finalRevenue, actualPayAtCounter } =
-                    calculateInvoiceAmounts(item);
+                    const { finalRevenue, actualPayAtCounter } =
+                      calculateInvoiceAmounts(item);
 
-                  return (
-                    <tr
-                      key={item._id}
-                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition"
-                    >
-                      <td className="p-3.5 font-semibold">
-                        <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                          <User
-                            size={15}
-                            className="text-emerald-500 shrink-0"
-                          />
-                          <span className="font-bold">{customerName}</span>
-                        </div>
-                        <div className="text-[11px] text-slate-400 font-normal pl-5 mt-0.5 font-mono">
-                          {customerPhone}
-                        </div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-                          <MapPin size={15} className="shrink-0" />
-                          {item.court?.name || "Sân"}
-                        </div>
-                        <div className="text-[11px] text-slate-400">
-                          {item.court?.type}
-                        </div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-300">
-                          <Calendar size={13} className="text-slate-400" />
-                          {bookingInfo.date
-                            ? bookingInfo.date.split("T")[0]
-                            : "N/A"}
-                        </div>
-                        <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          <Clock size={13} className="text-slate-400" />
-                          {bookingInfo.startTime || "--:--"} -{" "}
-                          {bookingInfo.endTime || "--:--"}
-                        </div>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="space-y-1">
-                          <div>
-                            <span
-                              className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-lg ${
-                                formatPaymentMethod(item.paymentMethod) ===
-                                "Tiền mặt"
-                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                                  : "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
-                              }`}
-                            >
-                              {formatPaymentMethod(item.paymentMethod)}
-                            </span>
+                    return (
+                      <tr
+                        key={item._id}
+                        className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition"
+                      >
+                        <td className="p-3.5 font-semibold">
+                          <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                            <User
+                              size={15}
+                              className="text-emerald-500 shrink-0"
+                            />
+                            <span className="font-bold">{customerName}</span>
                           </div>
-                          <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                            <span>Thu ngân:</span>
-                            <span className="text-slate-700 dark:text-slate-300 font-medium">
-                              {item.cashierName &&
-                              !item.cashierName.includes("currentCashierName")
-                                ? item.cashierName
-                                : "Thu ngân ca trực"}
-                            </span>
+                          <div className="text-[11px] text-slate-400 font-normal pl-5 mt-0.5 font-mono">
+                            {customerPhone}
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                            <MapPin size={15} className="shrink-0" />
+                            {item.court?.name || "Sân"}
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            {item.court?.type}
+                          </div>
+                        </td>
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-300">
+                            <Calendar size={13} className="text-slate-400" />
+                            {bookingInfo.date
+                              ? bookingInfo.date.split("T")[0]
+                              : "N/A"}
+                          </div>
+                          <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            <Clock size={13} className="text-slate-400" />
+                            {bookingInfo.startTime || "--:--"} -{" "}
+                            {bookingInfo.endTime || "--:--"}
+                          </div>
+                        </td>
+                        <td className="p-3.5">
+                          <div className="space-y-1">
+                            <div>
+                              <span
+                                className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-lg ${
+                                  formatPaymentMethod(item.paymentMethod) ===
+                                  "Tiền mặt"
+                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                    : "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                                }`}
+                              >
+                                {formatPaymentMethod(item.paymentMethod)}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                              <span>Thu ngân:</span>
+                              <span className="text-slate-700 dark:text-slate-300 font-medium">
+                                {item.cashierName &&
+                                !item.cashierName.includes("currentCashierName")
+                                  ? item.cashierName
+                                  : "Thu ngân ca trực"}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
 
-                      <td className="p-3.5 font-bold text-slate-800 dark:text-white">
-                        {finalRevenue.toLocaleString()} đ
-                      </td>
+                        <td className="p-3.5 font-bold text-slate-800 dark:text-white">
+                          {finalRevenue.toLocaleString()} đ
+                        </td>
 
-                      <td className="p-3.5 font-bold text-emerald-600 dark:text-emerald-400">
-                        {actualPayAtCounter.toLocaleString()} đ
-                        <div className="text-[10px] font-normal text-slate-400">
-                          (Thu tại quầy)
-                        </div>
-                      </td>
+                        <td className="p-3.5 font-bold text-emerald-600 dark:text-emerald-400">
+                          {actualPayAtCounter.toLocaleString()} đ
+                          <div className="text-[10px] font-normal text-slate-400">
+                            (Thu tại quầy)
+                          </div>
+                        </td>
 
-                      <td className="p-3.5 text-center">
-                        {renderPaymentStatus(item)}
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenDetail(item)}
-                            className="p-1.5 text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
-                            title="Xem chi tiết"
-                          >
-                            <Eye size={15} />
-                          </button>
-
-                          {isAdmin && (
+                        <td className="p-3.5 text-center">
+                          {renderPaymentStatus(item)}
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={(e) => handleOpenDeleteModal(e, item)}
-                              className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
-                              title="Xóa hóa đơn"
+                              onClick={() => handleOpenDetail(item)}
+                              className="p-1.5 text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
+                              title="Xem chi tiết"
                             >
-                              <Trash2 size={15} />
+                              <Eye size={15} />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => handleOpenDeleteModal(e, item)}
+                                className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
+                                title="Xóa hóa đơn"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* THANH PHÂN TRANG BÊN DƯỚI (DỰ PHÒNG) */}
+            {/* {renderPaginationBar()} */}
+          </>
         )}
       </div>
 
@@ -830,7 +938,6 @@ export default function PaymentHistory() {
                       </span>
                     </div>
 
-                    {/* KHU VỰC CHỌN HOẶC HIỂN THỊ PHƯƠNG THỨC THANH TOÁN */}
                     <div className="flex items-center justify-between pt-2 border-t border-emerald-200 dark:border-emerald-900">
                       <span className="text-slate-600 dark:text-slate-400 font-medium">
                         Hình thức thanh toán:
@@ -872,7 +979,6 @@ export default function PaymentHistory() {
                 Đóng
               </button>
 
-              {/* Nút lưu thay đổi phương thức nếu hóa đơn đang ở trạng thái chờ thanh toán */}
               {selectedInvoice.paymentStatus !== "paid_full" &&
                 selectedInvoice.paymentStatus !== "paid" &&
                 selectedInvoice.paymentStatus !== "refunded" && (

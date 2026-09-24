@@ -23,6 +23,7 @@ import { useState, useEffect, useRef } from "react";
 import API from "../services/api";
 import { toast } from "react-toastify";
 import { io } from "socket.io-client";
+import VersionModal from "./VersionModal";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -456,7 +457,9 @@ export default function AdminLayout() {
                 </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
                   <ShieldCheck size={13} />{" "}
-                  {adminUser.role === "Admin" ? "Quản trị viên" : "Nhân viên"}
+                  {adminUser.role?.toLowerCase() === "admin"
+                    ? "Quản trị viên"
+                    : "Nhân viên"}
                 </p>
               </div>
             </div>
@@ -579,33 +582,11 @@ export default function AdminLayout() {
         </div>
       )}
 
-      {showVersionModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-sm text-center p-6">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              🏸
-            </div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white">
-              Badminton Admin Portal
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Hệ thống quản lý sân cầu lông chuyên nghiệp
-            </p>
-            <div className="my-4 py-2 px-3 bg-slate-100 dark:bg-slate-800 rounded-xl inline-block font-mono text-sm text-blue-600 dark:text-blue-400 font-semibold">
-              Phiên bản v1.4.0
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">
-              Tích hợp thông báo Socket.io Real-time toàn hệ thống.
-            </p>
-            <button
-              onClick={() => setShowVersionModal(false)}
-              className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-medium text-sm cursor-pointer"
-            >
-              Đóng
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Gọi Component Lịch Sử Phiên Bản Đã Tách File */}
+      <VersionModal
+        isOpen={showVersionModal}
+        onClose={() => setShowVersionModal(false)}
+      />
     </div>
   );
 }

@@ -276,7 +276,10 @@ export default function BookingsManager() {
 
   const handleCheckIn = async (bookingId) => {
     try {
-      const res = await API.put(`/bookings/${bookingId}/check-in`);
+      // Gửi thời gian hiện tại lúc bấm check-in lên server
+      const res = await API.put(`/bookings/${bookingId}/check-in`, {
+        checkInTime: new Date(),
+      });
       if (res.data.success) {
         toast.success("Check-in thành công!");
         fetchData();
@@ -339,21 +342,20 @@ export default function BookingsManager() {
   const getSlotColor = (status) => {
     switch (status) {
       case "confirmed":
-        return "bg-blue-500/20 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-300 dark:border-blue-700";
+        return "bg-blue-600 text-white font-semibold border border-blue-700";
       case "pending_deposit":
-        return "bg-amber-400/20 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-300 dark:border-amber-700";
+        return "bg-amber-500 text-white font-semibold border border-amber-600";
       case "checked_in":
-        return "bg-emerald-500/20 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700";
+        return "bg-emerald-600 text-white font-semibold border border-emerald-700";
       case "completed":
       case "COMPLETED":
-        return "bg-purple-500/20 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-300 dark:border-purple-700";
+        return "bg-purple-600 text-white font-semibold border border-purple-700";
       case "cancelled":
-        return "bg-rose-500/20 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border border-rose-300 dark:border-rose-700";
+        return "bg-rose-600 text-white font-semibold border border-rose-700";
       default:
         return "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800";
     }
   };
-
   const renderStatusBadge = (status) => {
     switch (status) {
       case "confirmed":
@@ -835,13 +837,9 @@ export default function BookingsManager() {
                         onMouseEnter={() =>
                           handleMouseEnter(court._id, h, status)
                         }
-                        className={`h-14 border-b border-slate-200 dark:border-slate-800 transition cursor-pointer text-[10px] text-center p-0 relative ${
-                          isStartCell
-                            ? "border-r border-slate-200 dark:border-slate-700"
-                            : "border-r border-transparent"
-                        } ${
+                        className={`h-14 transition cursor-pointer text-[10px] text-center p-0 relative border border-slate-300 dark:border-slate-700 ${
                           isSelecting || isFormSelected
-                            ? "bg-emerald-300/70 dark:bg-emerald-900/80 border-2 border-emerald-500 z-10"
+                            ? "bg-emerald-300/80 dark:bg-emerald-900/80 border-2 border-emerald-600 z-10"
                             : getSlotColor(status)
                         }`}
                       >

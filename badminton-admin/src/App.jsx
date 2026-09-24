@@ -14,6 +14,7 @@ import BillingManager from "./pages/BillingManager";
 import PaymentHistory from "./pages/PaymentHistory";
 import FixedSchedulesManager from "./pages/FixedSchedulesManager";
 import DiscountsManager from "./pages/DiscountManager";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 
 // Các trang quản lý khác (tạm thời để trống component hoặc tạo file mock tương tự)
 const DummyPage = ({ title }) => (
@@ -57,6 +58,8 @@ function App() {
         pauseOnHover
         theme="colored"
       />
+
+      <ScrollToTopButton />
     </>
   );
 }

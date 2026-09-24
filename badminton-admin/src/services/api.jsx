@@ -31,7 +31,10 @@ API.interceptors.response.use(
   },
   (error) => {
     // Nếu lỗi trả về là 401 (Unauthorized) do hết hạn hoặc sai Token
-    if (error.response && error.response.status === 401) {
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
       // Xóa toàn bộ token và thông tin user hiện tại
       localStorage.removeItem("adminToken");
       localStorage.removeItem("token");

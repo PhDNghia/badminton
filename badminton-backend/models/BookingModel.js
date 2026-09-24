@@ -26,6 +26,7 @@ const bookingSchema = new mongoose.Schema(
     date: { type: String, required: true },
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
+    checkInTime: { type: Date, default: null },
     totalPrice: { type: Number, required: true },
     depositAmount: { type: Number, required: true },
 
