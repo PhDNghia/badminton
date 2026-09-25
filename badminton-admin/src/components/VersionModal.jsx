@@ -1,62 +1,74 @@
 import { useState } from "react";
 import { X, Sparkles, CheckCircle2, ShieldAlert, Layers } from "lucide-react";
+// Danh sách các phiên bản và lịch sử cập nhật
+export const versions = [
+  {
+    version: "v1.5.0",
+    date: "26/09/2026",
+    tag: "Mới nhất",
+    tagColor:
+      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+    changes: [
+      "Bổ sung tính năng 'Thêm sân phát sinh' trực tiếp trong hóa đơn khi khách có nhu cầu đặt thêm sân trong khung giờ đang đánh.",
+      "Tối ưu hóa công thức tính tài chính tại trang Lịch sử thanh toán: Tiền thu tại quầy được tự động tính bằng Tổng doanh thu trừ đi Tiền cọc và các khoản khách đã thanh toán trước.",
+      "Cải tiến logic kiểm tra xung đột thời gian, tự động vô hiệu hóa các ô sân đã có lịch bận trên lưới đặt sân.",
+    ],
+  },
+  {
+    version: "v1.4.0",
+    date: "24/09/2026",
+    tag: "Mới nhất",
+    tagColor:
+      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+    changes: [
+      "Cải thiện giao diện Sơ đồ lịch sân trực quan, làm rõ đường viền các ô giờ giúp dễ quan sát.",
+      "Nâng cấp tính năng kéo thả (drag-to-select) trên lưới đặt sân mượt mà hơn.",
+      "Tối ưu hóa hiển thị trạng thái cọc và phân quyền quản trị viên.",
+    ],
+  },
+  {
+    version: "v1.3.2",
+    date: "15/09/2026",
+    tag: "Bản vá",
+    tagColor:
+      "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+    changes: [
+      "Khắc phục lỗi lệch múi giờ UTC khi lọc danh sách lịch đặt theo ngày.",
+      "Thêm cơ chế tự động bắt buộc cọc 100% đối với khách hàng có lịch sử bùng sân (strikeCount > 0).",
+    ],
+  },
+  {
+    version: "v1.3.0",
+    date: "01/09/2026",
+    tag: "Tính năng lớn",
+    tagColor:
+      "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+    changes: [
+      "Ra mắt sơ đồ lịch sân trực quan dạng lưới 24 giờ cho từng sân.",
+      "Bổ sung tính năng check-in trực tiếp và xử lý tình huống khách bùng sân (giữ cọc hoặc hoàn tiền).",
+      "Thêm quản lý mã giảm giá và thống kê doanh thu chi tiết.",
+    ],
+  },
+  {
+    version: "v1.0.0",
+    date: "10/08/2026",
+    tag: "Phát hành",
+    tagColor:
+      "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+    changes: [
+      "Khởi động hệ thống quản lý sân cầu lông cơ bản.",
+      "Quản lý danh sách sân, danh sách người dùng và đặt lịch thủ công.",
+    ],
+  },
+];
 
 export default function VersionModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
-  // Danh sách các phiên bản và lịch sử cập nhật
-  const versions = [
-    {
-      version: "v1.4.0",
-      date: "24/09/2026",
-      tag: "Mới nhất",
-      tagColor:
-        "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
-      changes: [
-        "Cải thiện giao diện Sơ đồ lịch sân trực quan, làm rõ đường viền các ô giờ giúp dễ quan sát.",
-        "Nâng cấp tính năng kéo thả (drag-to-select) trên lưới đặt sân mượt mà hơn.",
-        "Tối ưu hóa hiển thị trạng thái cọc và phân quyền quản trị viên.",
-      ],
-    },
-    {
-      version: "v1.3.2",
-      date: "15/09/2026",
-      tag: "Bản vá",
-      tagColor:
-        "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800",
-      changes: [
-        "Khắc phục lỗi lệch múi giờ UTC khi lọc danh sách lịch đặt theo ngày.",
-        "Thêm cơ chế tự động bắt buộc cọc 100% đối với khách hàng có lịch sử bùng sân (strikeCount > 0).",
-      ],
-    },
-    {
-      version: "v1.3.0",
-      date: "01/09/2026",
-      tag: "Tính năng lớn",
-      tagColor:
-        "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-800",
-      changes: [
-        "Ra mắt sơ đồ lịch sân trực quan dạng lưới 24 giờ cho từng sân.",
-        "Bổ sung tính năng check-in trực tiếp và xử lý tình huống khách bùng sân (giữ cọc hoặc hoàn tiền).",
-        "Thêm quản lý mã giảm giá và thống kê doanh thu chi tiết.",
-      ],
-    },
-    {
-      version: "v1.0.0",
-      date: "10/08/2026",
-      tag: "Phát hành",
-      tagColor:
-        "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
-      changes: [
-        "Khởi động hệ thống quản lý sân cầu lông cơ bản.",
-        "Quản lý danh sách sân, danh sách người dùng và đặt lịch thủ công.",
-      ],
-    },
-  ];
-
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      {/* Thay max-w-lg thành max-w-2xl hoặc max-w-3xl để modal rộng rãi hơn */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-5xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header Modal */}
         <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center gap-2.5">

@@ -30,6 +30,8 @@ const bookingSchema = new mongoose.Schema(
     totalPrice: { type: Number, required: true },
     depositAmount: { type: Number, required: true },
 
+    groupBookingId: { type: String, default: null },
+
     paymentStatus: {
       type: String,
       enum: [

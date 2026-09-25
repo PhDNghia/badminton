@@ -22,6 +22,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Layers,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -44,7 +45,6 @@ export default function PaymentHistory() {
   const [endDate, setEndDate] = useState("");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
 
-  // State Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -89,55 +89,47 @@ export default function PaymentHistory() {
     return method;
   };
 
-  const calculateInvoiceAmounts = (item) => {
-    if (!item)
-      return {
-        grossTotal: 0,
-        discount: 0,
-        finalRevenue: 0,
-        deposit: 0,
-        prepaidItems: 0,
-        actualPayAtCounter: 0,
-      };
-
-    const courtPrice = item.courtFee || 0;
-    const itemsTotal = (item.items || []).reduce(
-      (sum, i) => sum + (i.price || 0) * (i.quantity || 1),
-      0,
-    );
-    const prepaidItems = (item.items || []).reduce(
-      (sum, i) => sum + (i.isPaid ? (i.price || 0) * (i.quantity || 1) : 0),
-      0,
-    );
-
-    const grossTotal = item.totalAmount || courtPrice + itemsTotal;
-    const discount = item.discountAmount || 0;
-    const deposit = item.depositPaid || 0;
-
-    const isForfeited =
-      item.paymentStatus === "forfeited_deposit" ||
-      item.paymentStatus === "deposit_retained";
-
-    let finalRevenue = 0;
-    let actualPayAtCounter = 0;
-
-    if (isForfeited) {
-      finalRevenue = deposit;
-      actualPayAtCounter = deposit;
-    } else {
-      finalRevenue = Math.max(0, grossTotal - discount);
-      actualPayAtCounter = Math.max(0, finalRevenue - deposit - prepaidItems);
-    }
-
+const calculateInvoiceAmounts = (item) => {
+  if (!item)
     return {
-      grossTotal,
-      discount,
-      finalRevenue,
-      deposit,
-      prepaidItems,
-      actualPayAtCounter,
+      grossTotal: 0,
+      discount: 0,
+      finalRevenue: 0,
+      deposit: 0,
+      prepaidItems: 0,
+      actualPayAtCounter: 0,
     };
+
+  // Tổng doanh thu tổng thể (hoặc totalAmount từ DB)
+  const grossTotal = item.totalAmount || 0;
+  const discount = item.discountAmount || 0;
+  const deposit = item.depositPaid || 0; // Tiền cọc khách trả trước
+
+  // Tính tổng doanh thu thực tế sau khi đã trừ giảm giá (nếu có)
+  const finalRevenue = Math.max(0, grossTotal - discount);
+
+  // Tính tiền sản phẩm/dịch vụ đã trả lẻ trước (nếu có các item có isPaid === true)
+  const prepaidItems = (item.items || []).reduce(
+    (sum, i) => sum + (i.isPaid ? (i.price || 0) * (i.quantity || 1) : 0),
+    0,
+  );
+
+  // Tiền thu tại quầy = Tổng doanh thu - Tiền cọc - Các khoản đã thanh toán trước/trả lẻ
+  // Hoặc nếu DB đã có sẵn remainingAmount thì ưu tiên dùng, không thì tự trừ theo công thức chuẩn bạn yêu cầu
+  const actualPayAtCounter =
+    item.remainingAmount !== undefined
+      ? item.remainingAmount
+      : Math.max(0, finalRevenue - deposit - prepaidItems);
+
+  return {
+    grossTotal,
+    discount,
+    finalRevenue,
+    deposit,
+    prepaidItems,
+    actualPayAtCounter,
   };
+};
 
   const renderPaymentStatus = (item) => {
     const status = item.paymentStatus;
@@ -247,7 +239,6 @@ export default function PaymentHistory() {
     endDate,
   ]);
 
-  // Reset về trang 1 khi thay đổi bộ lọc hoặc tìm kiếm
   useEffect(() => {
     setCurrentPage(1);
   }, [
@@ -261,7 +252,6 @@ export default function PaymentHistory() {
     endDate,
   ]);
 
-  // Tính toán dữ liệu phân trang
   const totalItems = filteredPayments.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
   const currentTableData = useMemo(() => {
@@ -356,7 +346,6 @@ export default function PaymentHistory() {
     }
   };
 
-  // Component thanh phân trang dùng chung để tái sử dụng ở trên và dưới
   const renderPaginationBar = () => (
     <div className="flex flex-wrap items-center justify-between gap-4 py-3 px-4 text-xs text-slate-600 dark:text-slate-300 bg-slate-50/70 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 my-2">
       <div className="flex items-center gap-2">
@@ -431,7 +420,6 @@ export default function PaymentHistory() {
 
   return (
     <div className="w-full min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative transition-colors duration-200">
-      {/* HEADER TỔNG QUAN */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
@@ -444,7 +432,6 @@ export default function PaymentHistory() {
         </div>
       </div>
 
-      {/* KHU VỰC BỘ LỌC */}
       <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 mb-6 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-2.5 rounded-xl">
@@ -489,7 +476,6 @@ export default function PaymentHistory() {
           </div>
         </div>
 
-        {/* CÁC Ô CHỌN THỜI GIAN ĐI KÈM THEO LOẠI BỘ LỌC */}
         {(timeFilterType === "day" ||
           timeFilterType === "week" ||
           timeFilterType === "quarter") && (
@@ -552,7 +538,6 @@ export default function PaymentHistory() {
         )}
       </div>
 
-      {/* THẺ TỔNG QUAN DOANH THU */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 p-5 rounded-2xl flex items-center justify-between">
           <div>
@@ -586,7 +571,6 @@ export default function PaymentHistory() {
         </div>
       </div>
 
-      {/* BẢNG DANH SÁCH GIAO DỊCH */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs border border-slate-200 dark:border-slate-800 p-5 flex flex-col gap-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
           <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
@@ -594,7 +578,6 @@ export default function PaymentHistory() {
           </h2>
         </div>
 
-        {/* THANH PHÂN TRANG ĐẶT Ở TRÊN ĐẦU ĐỂ DỄ DÀNG THAY ĐỔI */}
         {!loading && filteredPayments.length > 0 && renderPaginationBar()}
 
         {loading ? (
@@ -613,144 +596,224 @@ export default function PaymentHistory() {
             </p>
           </div>
         ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
-                    <th className="p-3.5">Khách hàng</th>
-                    <th className="p-3.5">Sân cầu lông</th>
-                    <th className="p-3.5">Thời gian chơi</th>
-                    <th className="p-3.5">Phương thức</th>
-                    <th className="p-3.5">Tổng doanh thu hóa đơn</th>
-                    <th className="p-3.5">Thu tại quầy</th>
-                    <th className="p-3.5 text-center">Trạng thái</th>
-                    <th className="p-3.5 text-right">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {currentTableData.map((item) => {
-                    const customerName = item.customerName || "Khách lẻ";
-                    const customerPhone = item.phone || "Không có SĐT";
-                    const bookingInfo = item.booking || {};
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 font-semibold uppercase text-[10px]">
+                  <th className="p-3.5">Khách hàng</th>
+                  <th className="p-3.5">Sân cầu lông (Nhiều sân)</th>
+                  <th className="p-3.5">Khung giờ từng sân</th>
+                  <th className="p-3.5">Phương thức</th>
+                  <th className="p-3.5">Tổng doanh thu</th>
+                  <th className="p-3.5">Thu tại quầy</th>
+                  <th className="p-3.5 text-center">Trạng thái</th>
+                  <th className="p-3.5 text-right">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                {currentTableData.map((item) => {
+                  const customerName = item.customerName || "Khách lẻ";
+                  const customerPhone = item.phone || "Không có SĐT";
+                  const { finalRevenue, actualPayAtCounter } =
+                    calculateInvoiceAmounts(item);
 
-                    const { finalRevenue, actualPayAtCounter } =
-                      calculateInvoiceAmounts(item);
+                  const courtsList =
+                    item.courts || (item.court ? [item.court] : []);
+                  const isGroup = courtsList.length > 1;
 
-                    return (
-                      <tr
-                        key={item._id}
-                        className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition"
-                      >
-                        <td className="p-3.5 font-semibold">
-                          <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                            <User
-                              size={15}
-                              className="text-emerald-500 shrink-0"
-                            />
-                            <span className="font-bold">{customerName}</span>
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-normal pl-5 mt-0.5 font-mono">
-                            {customerPhone}
-                          </div>
-                        </td>
-                        <td className="p-3.5">
-                          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-                            <MapPin size={15} className="shrink-0" />
-                            {item.court?.name || "Sân"}
-                          </div>
-                          <div className="text-[11px] text-slate-400">
-                            {item.court?.type}
-                          </div>
-                        </td>
-                        <td className="p-3.5">
-                          <div className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-300">
-                            <Calendar size={13} className="text-slate-400" />
-                            {bookingInfo.date
-                              ? bookingInfo.date.split("T")[0]
-                              : "N/A"}
-                          </div>
-                          <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                            <Clock size={13} className="text-slate-400" />
-                            {bookingInfo.startTime || "--:--"} -{" "}
-                            {bookingInfo.endTime || "--:--"}
-                          </div>
-                        </td>
-                        <td className="p-3.5">
+                  return (
+                    <tr
+                      key={item._id}
+                      className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition"
+                    >
+                      <td className="p-3.5 font-semibold">
+                        <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                          <User
+                            size={15}
+                            className="text-emerald-500 shrink-0"
+                          />
+                          <span className="font-bold">{customerName}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-normal pl-5 mt-0.5 font-mono">
+                          {customerPhone}
+                        </div>
+                      </td>
+
+                      <td className="p-3.5">
+                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                          <MapPin size={15} className="shrink-0" />
+                          {isGroup ? (
+                            <span className="flex items-center gap-1">
+                              Gộp {courtsList.length} sân{" "}
+                              <Layers size={13} className="text-emerald-500" />
+                            </span>
+                          ) : (
+                            item.court?.name || "Sân"
+                          )}
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          {isGroup
+                            ? courtsList
+                                .map((c) => c?.name)
+                                .filter(Boolean)
+                                .join(", ")
+                            : item.court?.type || "Sân chuẩn"}
+                        </div>
+                      </td>
+
+                      {/* KHÚC CẦN SỬA ĐÃ ĐƯỢC TÍCH HỢP TRỰC TIẾP TẠI ĐÂY */}
+                      <td className="p-3.5">
+                        {item.courtDetails && item.courtDetails.length > 0 ? (
                           <div className="space-y-1">
-                            <div>
-                              <span
-                                className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-lg ${
-                                  formatPaymentMethod(item.paymentMethod) ===
-                                  "Tiền mặt"
-                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                                    : "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
-                                }`}
+                            {item.courtDetails.map((detail, idx) => (
+                              <div
+                                key={idx}
+                                className="text-[11px] bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded-md border border-slate-200/60 dark:border-slate-700/60 mb-0.5"
                               >
-                                {formatPaymentMethod(item.paymentMethod)}
-                              </span>
+                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                  Sân #{idx + 1}:
+                                </span>{" "}
+                                <span className="text-slate-600 dark:text-slate-300 font-mono">
+                                  {detail.actualStartTime || detail.startTime} -{" "}
+                                  {detail.actualEndTime || detail.endTime}
+                                  {detail.courtName && (
+                                    <span className="text-slate-400 text-xs ml-1">
+                                      ({detail.courtName})
+                                    </span>
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : item.bookings && item.bookings.length > 0 ? (
+                          <div className="space-y-1">
+                            {item.bookings.map((b, bIdx) => {
+                              const bId = b._id || b.id;
+                              const t = item.courtTimes?.[bId] || {};
+                              const bDate =
+                                b.date || b.bookingDate || item.booking?.date;
+                              const bStart =
+                                t.startTime ||
+                                b.startTime ||
+                                item.booking?.startTime ||
+                                "--:--";
+                              const bEnd =
+                                t.endTime ||
+                                b.endTime ||
+                                item.booking?.endTime ||
+                                "--:--";
+
+                              return (
+                                <div
+                                  key={bIdx}
+                                  className="text-[11px] bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded-md border border-slate-200/60 dark:border-slate-700/60"
+                                >
+                                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                                    {b.court?.name ||
+                                      b.name ||
+                                      `Sân #${bIdx + 1}`}
+                                    :
+                                  </span>{" "}
+                                  <span className="text-slate-600 dark:text-slate-300 font-mono">
+                                    {bDate ? bDate.split("T")[0] : ""} ({bStart}{" "}
+                                    - {bEnd})
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-700 dark:text-slate-300">
+                              <Calendar size={13} className="text-slate-400" />
+                              {item.booking?.date
+                                ? item.booking.date.split("T")[0]
+                                : item.date
+                                  ? item.date.split("T")[0]
+                                  : "N/A"}
                             </div>
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                              <span>Thu ngân:</span>
-                              <span className="text-slate-700 dark:text-slate-300 font-medium">
-                                {item.cashierName &&
-                                !item.cashierName.includes("currentCashierName")
-                                  ? item.cashierName
-                                  : "Thu ngân ca trực"}
-                              </span>
+                            <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              <Clock size={13} className="text-slate-400" />
+                              {item.booking?.startTime ||
+                                item.startTime ||
+                                "--:--"}{" "}
+                              -{" "}
+                              {item.booking?.endTime || item.endTime || "--:--"}
                             </div>
                           </div>
-                        </td>
+                        )}
+                      </td>
 
-                        <td className="p-3.5 font-bold text-slate-800 dark:text-white">
-                          {finalRevenue.toLocaleString()} đ
-                        </td>
-
-                        <td className="p-3.5 font-bold text-emerald-600 dark:text-emerald-400">
-                          {actualPayAtCounter.toLocaleString()} đ
-                          <div className="text-[10px] font-normal text-slate-400">
-                            (Thu tại quầy)
-                          </div>
-                        </td>
-
-                        <td className="p-3.5 text-center">
-                          {renderPaymentStatus(item)}
-                        </td>
-                        <td className="p-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => handleOpenDetail(item)}
-                              className="p-1.5 text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
-                              title="Xem chi tiết"
+                      <td className="p-3.5">
+                        <div className="space-y-1">
+                          <div>
+                            <span
+                              className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-lg ${
+                                formatPaymentMethod(item.paymentMethod) ===
+                                "Tiền mặt"
+                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                  : "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+                              }`}
                             >
-                              <Eye size={15} />
-                            </button>
-
-                            {isAdmin && (
-                              <button
-                                onClick={(e) => handleOpenDeleteModal(e, item)}
-                                className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
-                                title="Xóa hóa đơn"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            )}
+                              {formatPaymentMethod(item.paymentMethod)}
+                            </span>
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                            <span>Thu ngân:</span>
+                            <span className="text-slate-700 dark:text-slate-300 font-medium">
+                              {item.cashierName &&
+                              !item.cashierName.includes("currentCashierName")
+                                ? item.cashierName
+                                : "Thu ngân ca trực"}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
 
-            {/* THANH PHÂN TRANG BÊN DƯỚI (DỰ PHÒNG) */}
-            {/* {renderPaginationBar()} */}
-          </>
+                      <td className="p-3.5 font-bold text-slate-800 dark:text-white">
+                        {finalRevenue.toLocaleString()} đ
+                      </td>
+
+                      <td className="p-3.5 font-bold text-emerald-600 dark:text-emerald-400">
+                        {actualPayAtCounter.toLocaleString()} đ
+                        <div className="text-[10px] font-normal text-slate-400">
+                          (Thu tại quầy)
+                        </div>
+                      </td>
+
+                      <td className="p-3.5 text-center">
+                        {renderPaymentStatus(item)}
+                      </td>
+                      <td className="p-3.5 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenDetail(item)}
+                            className="p-1.5 text-slate-500 hover:text-emerald-600 dark:text-slate-400 dark:hover:text-emerald-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
+                            title="Xem chi tiết"
+                          >
+                            <Eye size={15} />
+                          </button>
+
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => handleOpenDeleteModal(e, item)}
+                              className="p-1.5 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 bg-slate-100 dark:bg-slate-800 rounded-lg transition cursor-pointer"
+                              title="Xóa hóa đơn"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* MODAL CHI TIẾT HÓA ĐƠN */}
       {isModalOpen && selectedInvoice && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-xs">
@@ -781,28 +844,88 @@ export default function PaymentHistory() {
                 <div className="flex justify-between">
                   <span className="text-slate-400">Sân đặt:</span>
                   <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                    {selectedInvoice.court?.name || "Sân"} -{" "}
-                    {selectedInvoice.court?.type || "Sân chuẩn"}
+                    {selectedInvoice.courts && selectedInvoice.courts.length > 1
+                      ? `Hóa đơn gộp ${selectedInvoice.courts.length} sân`
+                      : selectedInvoice.court?.name || "Sân"}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Ngày chơi:</span>
-                  <span className="font-medium text-slate-800 dark:text-white">
-                    {selectedInvoice.booking?.date
-                      ? selectedInvoice.booking.date.split("T")[0]
-                      : "N/A"}
+
+                <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                  <span className="text-slate-400 block mb-1 font-medium">
+                    Khung giờ các sân:
                   </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Khung giờ:</span>
-                  <span className="font-mono font-medium text-slate-800 dark:text-white">
-                    {selectedInvoice.booking?.startTime || "--:--"} đến{" "}
-                    {selectedInvoice.booking?.endTime || "--:--"}
-                  </span>
+                  {selectedInvoice.courtDetails &&
+                  selectedInvoice.courtDetails.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {selectedInvoice.courtDetails.map((detail, idx) => (
+                        <div
+                          key={idx}
+                          className="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700"
+                        >
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            Sân #{idx + 1}{" "}
+                            {detail.courtName && `(${detail.courtName})`}
+                          </span>
+                          <span className="font-mono text-slate-700 dark:text-slate-300">
+                            {detail.actualStartTime || detail.startTime} -{" "}
+                            {detail.actualEndTime || detail.endTime}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : selectedInvoice.bookings &&
+                    selectedInvoice.bookings.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {selectedInvoice.bookings.map((b, idx) => {
+                        const bId = b._id || b.id;
+                        const t = selectedInvoice.courtTimes?.[bId] || {};
+                        const bDate =
+                          b.date ||
+                          b.bookingDate ||
+                          selectedInvoice.booking?.date;
+                        const bStart =
+                          t.startTime ||
+                          b.startTime ||
+                          selectedInvoice.booking?.startTime ||
+                          "--:--";
+                        const bEnd =
+                          t.endTime ||
+                          b.endTime ||
+                          selectedInvoice.booking?.endTime ||
+                          "--:--";
+
+                        return (
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700"
+                          >
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              {b.court?.name || b.name || `Sân #${idx + 1}`}
+                            </span>
+                            <span className="font-mono text-slate-700 dark:text-slate-300">
+                              {bDate ? bDate.split("T")[0] : ""} | {bStart} -{" "}
+                              {bEnd}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between font-mono">
+                      <span className="text-slate-600 dark:text-slate-300">
+                        {selectedInvoice.booking?.date
+                          ? selectedInvoice.booking.date.split("T")[0]
+                          : "N/A"}
+                      </span>
+                      <span className="text-slate-800 dark:text-white font-medium">
+                        {selectedInvoice.booking?.startTime || "--:--"} đến{" "}
+                        {selectedInvoice.booking?.endTime || "--:--"}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* DANH SÁCH CHI TIẾT SÂN & SẢN PHẨM & VOUCHER */}
               <div className="space-y-2">
                 <h4 className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 uppercase tracking-wider text-[10px]">
                   <Info size={13} className="text-emerald-500" /> Chi tiết tiền
@@ -811,7 +934,7 @@ export default function PaymentHistory() {
                 <div className="border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
                   <div className="flex justify-between items-center p-3 bg-slate-50/50 dark:bg-slate-800/20">
                     <span className="text-slate-600 dark:text-slate-300">
-                      Tiền sân ({selectedInvoice.court?.name || "Sân"})
+                      Tổng tiền sân ({selectedInvoice.courts?.length || 1} sân)
                     </span>
                     <span className="font-semibold text-slate-800 dark:text-white">
                       {(selectedInvoice.courtFee || 0).toLocaleString()} đ
@@ -874,7 +997,6 @@ export default function PaymentHistory() {
                 </div>
               </div>
 
-              {/* TỔNG KẾT THANH TOÁN TRONG MODAL */}
               {(() => {
                 const {
                   finalRevenue,
@@ -995,7 +1117,6 @@ export default function PaymentHistory() {
         </div>
       )}
 
-      {/* MODAL XÁC NHẬN XÓA HÓA ĐƠN */}
       {isDeleteModalOpen && invoiceToDelete && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 text-center p-6">
@@ -1010,11 +1131,7 @@ export default function PaymentHistory() {
               <strong className="text-slate-800 dark:text-white">
                 {invoiceToDelete.customerName || "Khách lẻ"}
               </strong>{" "}
-              (Sân:{" "}
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                {invoiceToDelete.court?.name || "N/A"}
-              </span>
-              ) không?
+              không?
             </p>
             <div className="flex justify-center gap-3">
               <button

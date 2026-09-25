@@ -36,9 +36,9 @@ export default function BookingsManager() {
 
   const [selectedDate, setSelectedDate] = useState(getTodayString());
 
-  // Form tạo lịch đặt mới
+  // Form tạo lịch đặt mới (Hỗ trợ chọn nhiều sân qua mảng courtIds)
   const [showAddForm, setShowAddForm] = useState(false);
-  const [courtId, setCourtId] = useState("");
+  const [courtIds, setCourtIds] = useState([]);
   const [isGuest, setIsGuest] = useState(true);
   const [userId, setUserId] = useState("");
   const [guestName, setGuestName] = useState("");
@@ -107,7 +107,7 @@ export default function BookingsManager() {
     }
   }, [userId, users, totalPrice]);
 
-  const calculateTotalPrice = (start, end) => {
+  const calculateTotalPrice = (start, end, numCourts = 1) => {
     if (!start || !end) {
       setTotalPrice(0);
       return;
@@ -132,7 +132,8 @@ export default function BookingsManager() {
       }
     }
 
-    setTotalPrice(total);
+    const count = Math.max(1, numCourts);
+    setTotalPrice(total * count);
   };
 
   const getSlotStatus = (cId, hour) => {
@@ -169,7 +170,8 @@ export default function BookingsManager() {
   };
 
   const isFormSelectedSlot = (cId, hour) => {
-    if (!showAddForm || courtId !== cId || date !== selectedDate) return false;
+    if (!showAddForm || !courtIds.includes(cId) || date !== selectedDate)
+      return false;
     if (!startTime || !endTime) return false;
     const startH = parseInt(startTime.split(":")[0], 10);
     const endH = parseInt(endTime.split(":")[0], 10);
@@ -206,12 +208,12 @@ export default function BookingsManager() {
     const formattedStart = minH < 10 ? `0${minH}:00` : `${minH}:00`;
     const formattedEnd = maxH < 10 ? `0${maxH}:00` : `${maxH}:00`;
 
-    setCourtId(dragCourtId);
+    setCourtIds([dragCourtId]);
     setDate(selectedDate);
     setStartTime(formattedStart);
     setEndTime(formattedEnd);
 
-    calculateTotalPrice(formattedStart, formattedEnd);
+    calculateTotalPrice(formattedStart, formattedEnd, 1);
     setShowAddForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -222,10 +224,15 @@ export default function BookingsManager() {
       toast.error("Vui lòng chọn khung giờ trên lưới sân!");
       return;
     }
+    if (!courtIds || courtIds.length === 0) {
+      toast.error("Vui lòng chọn ít nhất một sân!");
+      return;
+    }
     setLoading(true);
     try {
       const payload = {
-        court: courtId,
+        courts: courtIds,
+        court: courtIds[0],
         date,
         startTime,
         endTime,
@@ -244,7 +251,7 @@ export default function BookingsManager() {
       if (res.data.success) {
         toast.success("Tạo lịch đặt sân thành công!");
         setShowAddForm(false);
-        setCourtId("");
+        setCourtIds([]);
         setUserId("");
         setGuestName("");
         setGuestPhone("");
@@ -276,7 +283,6 @@ export default function BookingsManager() {
 
   const handleCheckIn = async (bookingId) => {
     try {
-      // Gửi thời gian hiện tại lúc bấm check-in lên server
       const res = await API.put(`/bookings/${bookingId}/check-in`, {
         checkInTime: new Date(),
       });
@@ -356,6 +362,7 @@ export default function BookingsManager() {
         return "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800";
     }
   };
+
   const renderStatusBadge = (status) => {
     switch (status) {
       case "confirmed":
@@ -518,7 +525,7 @@ export default function BookingsManager() {
         </div>
       )}
 
-      {/* TIÊU ĐỀ BẢNG DIỀU KHIỂN */}
+      {/* TIÊU ĐỀ BẢNG ĐIỀU KHIỂN */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -543,7 +550,7 @@ export default function BookingsManager() {
           <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
             <h2 className="text-base font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
               <Sparkles size={18} className="text-emerald-500" /> Form Tạo Lịch
-              Đặt Sân (Chọn từ sơ đồ)
+              Đặt Sân (Chọn nhiều sân)
             </h2>
             <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 cursor-pointer font-medium select-none">
               <input
@@ -568,28 +575,87 @@ export default function BookingsManager() {
             onSubmit={handleCreateBooking}
             className="grid grid-cols-1 md:grid-cols-3 gap-4"
           >
-            <select
-              value={courtId}
-              onChange={(e) => setCourtId(e.target.value)}
-              required
-              className="p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-sm outline-none text-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-            >
-              <option
-                value=""
-                className="bg-white dark:bg-slate-800 text-slate-400"
-              >
-                -- Chọn sân --
-              </option>
-              {courts.map((court) => (
-                <option
-                  key={court._id}
-                  value={court._id}
-                  className="bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
-                >
-                  {court.name} ({court.type})
-                </option>
-              ))}
-            </select>
+            {/* DANH SÁCH CHỌN NHIỀU SÂN */}
+            <div className="md:col-span-3 bg-slate-50 dark:bg-slate-800 p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                Chọn sân (Có thể chọn nhiều sân để đặt cùng lúc):
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                {courts.map((court) => {
+                  const isChecked = courtIds.includes(court._id);
+
+                  // KIỂM TRA XEM SÂN NÀY CÓ BỊ TRÙNG LỊCH TRONG KHUNG GIỜ ĐANG CHỌN KHÔNG
+                  let isBusy = false;
+                  if (startTime && endTime && date) {
+                    const startH = parseInt(startTime.split(":")[0], 10);
+                    const endH = parseInt(endTime.split(":")[0], 10);
+
+                    isBusy = bookings.some((b) => {
+                      if (
+                        b.bookingStatus === "cancelled" ||
+                        b.bookingStatus === "ĐÃ HỦY"
+                      )
+                        return false;
+                      const bCourtId = b.court?._id || b.court;
+                      if (bCourtId !== court._id) return false;
+                      const bDate = new Date(b.date)
+                        .toISOString()
+                        .split("T")[0];
+                      if (bDate !== date) return false;
+
+                      const bStart = parseInt(
+                        b.startTime?.split(":")[0] || 0,
+                        10,
+                      );
+                      const bEnd = parseInt(b.endTime?.split(":")[0] || 0, 10);
+
+                      // Kiểm tra giao nhau giữa 2 khoảng thời gian
+                      return Math.max(startH, bStart) < Math.min(endH, bEnd);
+                    });
+                  }
+
+                  return (
+                    <label
+                      key={court._id}
+                      className={`flex items-center gap-2 p-2 rounded-lg border text-xs transition ${
+                        isBusy
+                          ? "opacity-50 bg-slate-200 dark:bg-slate-800 border-slate-300 dark:border-slate-700 cursor-not-allowed line-through"
+                          : isChecked
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-700 dark:text-emerald-300 font-semibold cursor-pointer"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={isBusy}
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (isBusy) return;
+                          let updatedCourts;
+                          if (e.target.checked) {
+                            updatedCourts = [...courtIds, court._id];
+                          } else {
+                            updatedCourts = courtIds.filter(
+                              (id) => id !== court._id,
+                            );
+                          }
+                          setCourtIds(updatedCourts);
+                          calculateTotalPrice(
+                            startTime,
+                            endTime,
+                            updatedCourts.length,
+                          );
+                        }}
+                        className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                      />
+                      <span className="truncate">
+                        {court.name} ({court.type}) {isBusy ? "- (Đã bận)" : ""}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
 
             {isGuest ? (
               <>
@@ -1002,7 +1068,7 @@ export default function BookingsManager() {
                                     show: true,
                                     title: "Xác nhận khách bùng sân",
                                     message:
-                                      "Bạn muốn xử lý khoản tiền cọc của lịch đặt này như thế nào?",
+                                      "You want to handle the deposit of this booking...",
                                     isNoShowAction: true,
                                     bookingId: item._id,
                                     onConfirm: null,

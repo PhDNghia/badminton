@@ -23,43 +23,127 @@ export const getAllInvoices = async (req, res) => {
   }
 };
 
-// Tạo hoặc lấy hóa đơn của 1 lịch đặt
 export const getOrCreateInvoice = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    let invoice = await InvoiceModel.findOne({ booking: bookingId }).populate(
-      "items.product",
-    );
 
+    // 1. Tìm booking hiện tại trước để xem nó có thuộc nhóm (groupBookingId) nào không
+    const booking =
+      await BookingModel.findById(bookingId).populate("court user");
+    if (!booking) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy lịch đặt!" });
+    }
+
+    // 2. Tìm tất cả các booking có cùng groupBookingId (hoặc chính nó)
+    let relatedBookingIds = [booking._id];
+    if (booking.groupBookingId) {
+      const groupBookings = await BookingModel.find({
+        groupBookingId: booking.groupBookingId,
+      });
+      relatedBookingIds = groupBookings.map((b) => b._id);
+    }
+
+    // 3. Tìm hóa đơn nào đang chứa bất kỳ booking nào trong danh sách trên
+    let invoice = await InvoiceModel.findOne({
+      $or: [
+        { booking: { $in: relatedBookingIds } },
+        { bookings: { $in: relatedBookingIds } },
+      ],
+    }).populate("items.product");
+
+    // 4. Nếu chưa có thì tạo mới hóa đơn gom toàn bộ các sân trong nhóm
     if (!invoice) {
-      const booking =
-        await BookingModel.findById(bookingId).populate("court user");
-      if (!booking)
-        return res
-          .status(404)
-          .json({ success: false, message: "Không tìm thấy lịch đặt!" });
+      const allGroupBookings = await BookingModel.find({
+        $or: [
+          { _id: { $in: relatedBookingIds } },
+          ...(booking.groupBookingId
+            ? [{ groupBookingId: booking.groupBookingId }]
+            : []),
+        ],
+      }).populate("court");
 
-      const courtFee = booking.totalPrice || 100000;
-      const deposit = booking.depositAmount || 0;
+      let totalCourtFee = allGroupBookings.reduce(
+        (sum, b) => sum + (b.totalPrice || 0),
+        0,
+      );
+      let totalDeposit = allGroupBookings.reduce(
+        (sum, b) => sum + (b.depositAmount || 0),
+        0,
+      );
+      let courtIds = allGroupBookings.map((b) => b.court?._id || b.court);
+
+      // 🕒 THÊM ĐOẠN MAP NÀY ĐỂ KHÔNG BỊ TRỐNG COURT DETAILS
+      let courtDetailsMap = allGroupBookings.map((b) => {
+        // Tính số giờ chơi từ startTime và endTime (VD: "19:00" đến "20:00" -> 1 giờ)
+        const startH = parseInt(b.startTime?.split(":")[0] || 0, 10);
+        const endH = parseInt(b.endTime?.split(":")[0] || 0, 10);
+        const hours = Math.max(1, endH - startH);
+
+        return {
+          court: b.court?._id || b.court,
+          actualStartTime: b.startTime || "",
+          actualEndTime: b.endTime || "",
+          hoursPlayed: hours,
+          price: b.totalPrice || 0,
+        };
+      });
 
       invoice = new InvoiceModel({
         booking: booking._id,
-        court: booking.court._id,
-        customerName: booking.user?.name || "Khách lẻ",
-        phone: booking.user?.phone || "N/A",
-        courtFee,
-        depositPaid: deposit,
+        bookings: relatedBookingIds,
+        court: courtIds[0],
+        courts: courtIds,
+        courtDetails: courtDetailsMap, // Gán mảng chi tiết vào đây
+        user: booking.user?._id || null,
+        customerName: booking.user?.name || booking.guestName || "Khách lẻ",
+        phone: booking.user?.phone || booking.guestPhone || "N/A",
+        courtFee: totalCourtFee,
+        depositPaid: totalDeposit,
         items: [],
         productsTotal: 0,
         discountCode: "",
         discountAmount: 0,
-        totalAmount: courtFee,
-        remainingAmount: courtFee - deposit,
+        totalAmount: totalCourtFee,
+        remainingAmount: totalCourtFee - totalDeposit,
         paymentStatus:
           booking.bookingStatus === "confirmed"
             ? "paid_deposit"
             : "pending_deposit",
       });
+      await invoice.save();
+    } else {
+      // Nếu đã có invoice nhưng thiếu booking mới thêm, tự động cập nhật lại mảng courts và courtFee
+      const allGroupBookings = await BookingModel.find({
+        $or: [
+          { groupBookingId: booking.groupBookingId },
+          { _id: invoice.booking },
+          { _id: { $in: invoice.bookings || [] } },
+        ],
+      });
+
+      let totalCourtFee = allGroupBookings.reduce(
+        (sum, b) => sum + (b.totalPrice || 0),
+        0,
+      );
+      let courtIds = allGroupBookings.map((b) => b.court?._id || b.court);
+
+      invoice.courtFee = totalCourtFee;
+      invoice.courts = courtIds;
+      invoice.totalAmount = invoice.courtFee + invoice.productsTotal;
+
+      const paidItemsAmount = invoice.items
+        .filter((i) => i.isPaid)
+        .reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+      invoice.remainingAmount = Math.max(
+        0,
+        invoice.totalAmount -
+          invoice.depositPaid -
+          paidItemsAmount -
+          (invoice.discountAmount || 0),
+      );
       await invoice.save();
     }
 
@@ -69,7 +153,7 @@ export const getOrCreateInvoice = async (req, res) => {
   }
 };
 
-// Cập nhật hóa đơn POS (Hỗ trợ thanh toán từng món ngay lập tức, mã giảm giá & thu ngân)
+// Cập nhật hóa đơn POS (Hỗ trợ nhiều sân với giờ chơi thực tế độc lập)
 export const updateInvoicePOS = async (req, res) => {
   try {
     const { invoiceId } = req.params;
@@ -80,6 +164,7 @@ export const updateInvoicePOS = async (req, res) => {
       cashierName,
       discountCode,
       discountAmount,
+      courtDetails, // 🕒 Nhận mảng chi tiết giờ chơi của từng sân từ Modal
     } = req.body;
 
     let invoice = await InvoiceModel.findById(invoiceId);
@@ -88,23 +173,25 @@ export const updateInvoicePOS = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Không tìm thấy hóa đơn!" });
 
-    if (items) {
-      invoice.items = items;
-      // Tính lại tổng tiền tất cả sản phẩm phát sinh
-      invoice.productsTotal = items.reduce(
-        (sum, i) => sum + i.price * i.quantity,
+    // Nếu có gửi thông tin chi tiết từng sân lên
+    if (courtDetails && Array.isArray(courtDetails)) {
+      invoice.courtDetails = courtDetails;
+
+      // Tự động cộng tổng tiền sân từ các sân trong mảng courtDetails
+      invoice.courtFee = courtDetails.reduce(
+        (sum, detail) => sum + (Number(detail.price) || 0),
         0,
       );
-
-      // Trừ kho sản phẩm nếu có món thanh toán hoàn tất hoặc thanh toán ngay
-      for (const item of items) {
-        if (item.product && (paymentStatus === "paid_full" || item.isPaid)) {
-          // Bạn có thể xử lý trừ kho nếu cần
-        }
-      }
     }
 
-    // Cập nhật thông tin mã giảm giá nếu có gửi lên
+    if (items) {
+      invoice.items = items;
+      invoice.productsTotal = items.reduce(
+        (sum, i) => sum + (i.price || 0) * (i.quantity || 1),
+        0,
+      );
+    }
+
     if (discountCode !== undefined) invoice.discountCode = discountCode;
     if (discountAmount !== undefined) invoice.discountAmount = discountAmount;
 
@@ -112,15 +199,13 @@ export const updateInvoicePOS = async (req, res) => {
     if (paymentMethod) invoice.paymentMethod = paymentMethod;
     if (cashierName) invoice.cashierName = cashierName;
 
-    // 1. Tổng toàn bộ giá trị hóa đơn (Tiền sân + Tổng tiền tất cả sản phẩm)
+    // Tính toán tổng tiền hóa đơn
     invoice.totalAmount = invoice.courtFee + invoice.productsTotal;
 
-    // 2. Tính tiền các món CHƯA thanh toán ngay (chỉ tính những món có isPaid = false vào bill cuối giờ)
     const unpaidProductsTotal = invoice.items
       .filter((i) => !i.isPaid)
-      .reduce((sum, i) => sum + i.price * i.quantity, 0);
+      .reduce((sum, i) => sum + (i.price || 0) * (i.quantity || 1), 0);
 
-    // 3. Số tiền còn lại thực thu cuối giờ = (Tiền sân + Tiền hàng chưa trả) - Tiền cọc - Giảm giá
     const discountVal = invoice.discountAmount || 0;
     const rawRemaining =
       invoice.courtFee +
@@ -131,23 +216,30 @@ export const updateInvoicePOS = async (req, res) => {
 
     await invoice.save();
 
-    await invoice.save();
-
-    // ✅ CHỈ CẬP NHẬT TRẠNG THÁI BOOKING KHI CÓ GỬI KÈM PAYMENTSTATUS
+    // Cập nhật trạng thái booking liên quan
     if (paymentStatus) {
-      let newBookingStatus = "confirmed";
-      if (paymentStatus === "paid_deposit") newBookingStatus = "confirmed";
-      if (paymentStatus === "paid_full") newBookingStatus = "completed";
+      let newBookingStatus =
+        paymentStatus === "paid_full" ? "completed" : "confirmed";
+      let bookingIdsToUpdate =
+        invoice.bookings && invoice.bookings.length > 0
+          ? invoice.bookings
+          : [invoice.booking];
 
-      await BookingModel.findByIdAndUpdate(invoice.booking, {
-        bookingStatus: newBookingStatus,
-      });
+      await BookingModel.updateMany(
+        { _id: { $in: bookingIdsToUpdate } },
+        { bookingStatus: newBookingStatus },
+      );
     }
+
+    // Populate lại để trả về dữ liệu đầy đủ cho Frontend hiển thị ngay lập tức
+    const updatedInvoice = await InvoiceModel.findById(invoiceId)
+      .populate("courtDetails.court")
+      .populate("items.product");
 
     res.status(200).json({
       success: true,
-      message: "Cập nhật bill thành công!",
-      data: invoice,
+      message: "Cập nhật giờ chơi từng sân và hóa đơn thành công!",
+      data: updatedInvoice,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

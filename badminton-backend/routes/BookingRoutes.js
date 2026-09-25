@@ -7,15 +7,15 @@ import {
   getAllBookings,
   deleteBooking,
   handleNoShowBooking,
+  addExtraCourtToBooking,
 } from "../controllers/BookingController.js";
 import {
   verifyToken,
   verifyAdminOrStaff,
-  optionalVerifyToken, 
+  optionalVerifyToken,
 } from "../middlewares/AuthMiddleware.js";
 
 const bookingRouter = express.Router();
-
 
 bookingRouter.post("/", optionalVerifyToken, createBooking);
 
@@ -43,6 +43,13 @@ bookingRouter.put(
   verifyToken,
   verifyAdminOrStaff,
   handleNoShowBooking,
+);
+
+bookingRouter.post(
+  "/add-extra-court",
+  verifyToken,
+  verifyAdminOrStaff,
+  addExtraCourtToBooking,
 );
 
 export default bookingRouter;

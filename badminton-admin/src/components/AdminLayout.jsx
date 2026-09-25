@@ -24,6 +24,7 @@ import API from "../services/api";
 import { toast } from "react-toastify";
 import { io } from "socket.io-client";
 import VersionModal from "./VersionModal";
+import { versions } from "./VersionModal";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -426,7 +427,7 @@ export default function AdminLayout() {
                     <span>Phiên bản</span>
                   </div>
                   <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-mono rounded">
-                    v1.4.0
+                    {versions[0].version}
                   </span>
                 </button>
               </div>

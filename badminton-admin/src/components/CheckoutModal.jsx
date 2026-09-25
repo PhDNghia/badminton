@@ -14,8 +14,6 @@ export default function CheckoutModal({
   onConfirm,
   booking,
   remainingAmount,
-  actualStartTime,
-  actualEndTime,
   invoiceItems,
   totalCourtFee,
   productsTotal,
@@ -23,19 +21,24 @@ export default function CheckoutModal({
   paidItemsAmount = 0,
   discountAmount = 0,
   appliedVoucher = null,
+  courtTimes = {},
 }) {
   const printRef = useRef(null);
 
   if (!isOpen || !booking) return null;
 
-  const courtName = booking.court?.name || "Sân";
+  const allCourtsList = booking.allCourts || [booking.court];
+  const courtNamesString = allCourtsList
+    .map((c) => c?.name || "Sân")
+    .join(", ");
+
   const customerName = booking.user?.name || booking.guestName || "Khách lẻ";
 
   const BANK_ID = import.meta.env.VITE_BANK_ID;
   const ACCOUNT_NO = import.meta.env.VITE_ACCOUNT_NO;
   const ACCOUNT_NAME = import.meta.env.VITE_ACCOUNT_NAME;
 
-  const addInfoText = `Thanh toan ${courtName} ${booking.startTime}-${booking.endTime}`;
+  const addInfoText = `Thanh toan ${courtNamesString} ${booking.startTime}-${booking.endTime}`;
   const encodedAddInfo = addInfoText.replace(/ /g, "%20");
   const encodedAccountName = ACCOUNT_NAME.replace(/ /g, "%20");
 
@@ -49,7 +52,7 @@ export default function CheckoutModal({
     printWindow.document.write(`
       <html>
         <head>
-          <title>Hóa đơn thanh toán - ${courtName}</title>
+          <title>Hóa đơn thanh toán - ${courtNamesString}</title>
           <style>
             body {
               font-family: 'Courier New', Courier, monospace;
@@ -105,15 +108,7 @@ export default function CheckoutModal({
                 Thông tin chi tiết hóa đơn
               </h4>
 
-              <div className="text-xs space-y-1.5 bg-white dark:bg-slate-900/60 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">
-                    Sân:
-                  </span>
-                  <span className="font-bold text-slate-800 dark:text-white">
-                    {courtName}
-                  </span>
-                </div>
+              <div className="text-xs space-y-2 bg-white dark:bg-slate-900/60 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
                 <div className="flex justify-between">
                   <span className="text-slate-500 dark:text-slate-400">
                     Khách hàng:
@@ -122,13 +117,31 @@ export default function CheckoutModal({
                     {customerName}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">
-                    Thời gian chơi thực tế:
+
+                <div className="border-t border-slate-100 dark:border-slate-800 pt-2 space-y-1.5">
+                  <span className="text-slate-400 font-semibold block">
+                    Khung giờ từng sân:
                   </span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {actualStartTime} - {actualEndTime}
-                  </span>
+                  {booking.allBookingIds &&
+                    booking.allBookingIds.map((bId, idx) => {
+                      const courtObj = booking.allCourts?.[idx];
+                      const courtName = courtObj?.name || `Sân ${idx + 1}`;
+                      const times = courtTimes[bId] || {
+                        startTime: booking.startTime,
+                        endTime: booking.endTime,
+                      };
+                      return (
+                        <div
+                          key={bId}
+                          className="flex justify-between items-center pl-2 text-slate-700 dark:text-slate-300"
+                        >
+                          <span>- {courtName}:</span>
+                          <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                            {times.startTime} - {times.endTime}
+                          </span>
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
 
@@ -136,14 +149,14 @@ export default function CheckoutModal({
                 <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wide">
                   Dịch vụ / Sản phẩm:
                 </p>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                   {invoiceItems.length > 0 ? (
-                    invoiceItems.map((item) => {
+                    invoiceItems.map((item, index) => {
                       const pId = item.product?._id || item.product;
                       return (
                         <div
-                          key={pId}
-                          className="flex justify-between items-center text-xs bg-white dark:bg-slate-900/40 p-2.5 rounded border border-slate-200 dark:border-slate-800/60"
+                          key={`${pId}-${index}`}
+                          className="flex justify-between items-center text-xs bg-white dark:bg-slate-900/40 p-2 rounded border border-slate-200 dark:border-slate-800/60"
                         >
                           <span className="text-slate-700 dark:text-slate-200 truncate w-3/5">
                             {item.name} (x{item.quantity}){" "}
@@ -173,7 +186,7 @@ export default function CheckoutModal({
 
             <div className="border-t border-slate-200 dark:border-slate-700/60 pt-3 space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                <span>Tiền sân:</span>
+                <span>Tiền sân (Tất cả sân):</span>
                 <span className="text-slate-700 dark:text-slate-200">
                   {totalCourtFee.toLocaleString("vi-VN")} đ
                 </span>
@@ -285,10 +298,25 @@ export default function CheckoutModal({
 
           <div>Ngày: {new Date().toLocaleDateString("vi-VN")}</div>
           <div>Khách hàng: {customerName}</div>
-          <div>Sân: {courtName}</div>
-          <div>
-            Giờ chơi: {actualStartTime} - {actualEndTime}
+
+          <div style={{ margin: "5px 0" }}>
+            <div className="font-bold">Chi tiết giờ chơi các sân:</div>
+            {booking.allBookingIds &&
+              booking.allBookingIds.map((bId, idx) => {
+                const courtObj = booking.allCourts?.[idx];
+                const courtName = courtObj?.name || `Sân ${idx + 1}`;
+                const times = courtTimes[bId] || {
+                  startTime: booking.startTime,
+                  endTime: booking.endTime,
+                };
+                return (
+                  <div key={bId} style={{ paddingLeft: "8px" }}>
+                    - {courtName}: {times.startTime} - {times.endTime}
+                  </div>
+                );
+              })}
           </div>
+
           <div>
             Thu ngân:{" "}
             {JSON.parse(localStorage.getItem("adminUser") || "{}").name ||
@@ -306,8 +334,8 @@ export default function CheckoutModal({
             </thead>
             <tbody>
               <tr>
-                <td>Tiền sân ({courtName})</td>
-                <td className="text-center">1</td>
+                <td>Tiền sân ({courtNamesString})</td>
+                <td className="text-center">{allCourtsList.length}</td>
                 <td className="text-right">
                   {totalCourtFee.toLocaleString("vi-VN")}đ
                 </td>
@@ -365,66 +393,6 @@ export default function CheckoutModal({
             </tbody>
           </table>
           <div className="border-b mt-2"></div>
-
-          <div className="flex">
-            <span>Tiền sân:</span>
-            <span>{totalCourtFee.toLocaleString("vi-VN")}đ</span>
-          </div>
-          <div className="flex">
-            <span>Tổng tiền hàng phát sinh:</span>
-            <span>{productsTotal.toLocaleString("vi-VN")}đ</span>
-          </div>
-          {paidItemsAmount > 0 && (
-            <div className="flex" style={{ color: "#333" }}>
-              <span>Đã trả lẻ các món trước:</span>
-              <span>-{paidItemsAmount.toLocaleString("vi-VN")}đ</span>
-            </div>
-          )}
-          {depositPaid > 0 && (
-            <div className="flex">
-              <span>Đã cọc trước:</span>
-              <span>-{depositPaid.toLocaleString("vi-VN")}đ</span>
-            </div>
-          )}
-          {discountAmount > 0 && (
-            <div className="flex">
-              <span>Giảm giá voucher:</span>
-              <span>-{discountAmount.toLocaleString("vi-VN")}đ</span>
-            </div>
-          )}
-          <div className="border-b mt-2"></div>
-
-          <div className="flex font-bold" style={{ fontSize: "13px" }}>
-            <span>THANH TOÁN CUỐI GIỜ:</span>
-            <span>{remainingAmount.toLocaleString("vi-VN")}đ</span>
-          </div>
-          <div className="border-b mt-2"></div>
-
-          <div className="text-center mt-3">
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: "bold",
-                marginBottom: "4px",
-              }}
-            >
-              QUÉT MÃ QR ĐỂ THANH TOÁN
-            </div>
-            <img
-              src={`https://img.vietqr.io/image/${BANK_ID}-${ACCOUNT_NO}-compact2.jpg?amount=${remainingAmount}&addInfo=${encodedAddInfo}&accountName=${encodedAccountName}`}
-              alt="QR Code"
-              style={{
-                width: "120px",
-                height: "120px",
-                margin: "0 auto",
-                display: "block",
-              }}
-            />
-          </div>
-
-          <div className="text-center mt-3" style={{ fontSize: "11px" }}>
-            Cảm ơn quý khách và hẹn gặp lại!
-          </div>
         </div>
       </div>
     </div>

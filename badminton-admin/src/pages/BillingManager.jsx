@@ -14,6 +14,7 @@ import {
   Tag,
   CircleDot,
   Receipt,
+  X,
 } from "lucide-react";
 
 import CheckoutModal from "../components/CheckoutModal";
@@ -29,8 +30,12 @@ export default function BillingManager() {
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [notification, setNotification] = useState({ message: "", type: "" });
 
-  const [actualStartTime, setActualStartTime] = useState("19:00");
-  const [actualEndTime, setActualEndTime] = useState("22:00");
+  // State quản lý giờ độc lập cho từng sân theo bookingId: { [bId]: { startTime, endTime } }
+  const [courtTimes, setCourtTimes] = useState({});
+
+  // State quản lý Modal thêm sân phát sinh
+  const [isAddCourtModalOpen, setIsAddCourtModalOpen] = useState(false);
+  const [availableCourts, setAvailableCourts] = useState([]);
 
   // State quản lý Voucher
   const [voucherCode, setVoucherCode] = useState("");
@@ -55,7 +60,34 @@ export default function BillingManager() {
         const status = b.bookingStatus ? b.bookingStatus.toLowerCase() : "";
         return status === "checked_in";
       });
-      setCheckedInBookings(active);
+
+      const groupedMap = {};
+      active.forEach((b) => {
+        const key =
+          b.groupBookingId ||
+          `${b.user?._id || b.guestPhone || b.guestName}_${b.date}_${b.startTime}_${b.endTime}`;
+
+        if (!groupedMap[key]) {
+          groupedMap[key] = {
+            ...b,
+            allCourts: [b.court],
+            allBookingIds: [b._id],
+            allBookingsData: [b],
+          };
+        } else {
+          const courtId = b.court?._id || b.court;
+          const exists = groupedMap[key].allCourts.some(
+            (c) => (c?._id || c) === courtId,
+          );
+          if (!exists) {
+            groupedMap[key].allCourts.push(b.court);
+          }
+          groupedMap[key].allBookingIds.push(b._id);
+          groupedMap[key].allBookingsData.push(b);
+        }
+      });
+
+      setCheckedInBookings(Object.values(groupedMap));
     } catch (error) {
       console.error("Lỗi tải danh sách check-in:", error);
     }
@@ -76,69 +108,206 @@ export default function BillingManager() {
     setAppliedVoucher(null);
     setDiscountAmount(0);
 
-    // Kiểm tra xem sân này đã có lưu nháp giờ chỉnh sửa trong sessionStorage chưa
-    const savedDraft = sessionStorage.getItem(`billing_draft_${booking._id}`);
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        setActualStartTime(parsed.actualStart || "19:00");
-        setActualEndTime(parsed.actualEnd || booking.endTime || "22:00");
-      } catch (e) {
-        setDefaultCheckInTime(booking);
-      }
-    } else {
-      // 🔥 NẾU ĐÃ CÓ CHECKINTIME LÚC BẤM NHẬN SÂN THÌ LẤY NÓ, CÒN KHÔNG THÌ LẤY GIỜ HIỆN TẠI
-      if (booking.checkInTime) {
-        const checkInDate = new Date(booking.checkInTime);
-        const hours = String(checkInDate.getHours()).padStart(2, "0");
-        const minutes = String(checkInDate.getMinutes()).padStart(2, "0");
-        setActualStartTime(`${hours}:${minutes}`);
-      } else {
-        const now = new Date();
-        const hours = String(now.getHours()).padStart(2, "0");
-        const minutes = String(now.getMinutes()).padStart(2, "0");
-        setActualStartTime(`${hours}:${minutes}`);
-      }
-
-      // Giờ kết thúc luôn mặc định lấy theo giờ trên đơn đặt của khách
-      setActualEndTime(booking.endTime || "22:00");
+    const initialTimes = {};
+    if (booking.allBookingsData && booking.allBookingsData.length > 0) {
+      booking.allBookingsData.forEach((subB) => {
+        initialTimes[subB._id] = {
+          startTime: subB.startTime || "07:00",
+          endTime: subB.endTime || "10:00",
+        };
+      });
+    } else if (booking.allBookingIds) {
+      booking.allBookingIds.forEach((bId) => {
+        initialTimes[bId] = {
+          startTime: booking.startTime || "07:00",
+          endTime: booking.endTime || "10:00",
+        };
+      });
     }
 
     try {
       const res = await API.get(`/invoices/booking/${booking._id}`);
       if (res.data.success) {
-        setCurrentInvoice(res.data.data);
+        const inv = res.data.data;
+        setCurrentInvoice(inv);
+
+        // Khôi phục giờ từ courtTimes hoặc courtDetails đã lưu trong DB
+        if (inv.courtTimes && Object.keys(inv.courtTimes).length > 0) {
+          Object.assign(initialTimes, inv.courtTimes);
+        } else if (inv.courtDetails && inv.courtDetails.length > 0) {
+          booking.allBookingIds.forEach((bId, idx) => {
+            const detail =
+              inv.courtDetails[idx] ||
+              inv.courtDetails.find(
+                (d) =>
+                  (d.court?._id || d.court) ===
+                  (booking.allCourts?.[idx]?._id || booking.allCourts?.[idx]),
+              );
+            if (detail && detail.actualStartTime && detail.actualEndTime) {
+              initialTimes[bId] = {
+                startTime: detail.actualStartTime,
+                endTime: detail.actualEndTime,
+              };
+            }
+          });
+        }
       }
     } catch (error) {
       console.error("Lỗi lấy invoice:", error);
       showNotification("Không thể tải thông tin hóa đơn của sân này!", "error");
     }
+
+    setCourtTimes(initialTimes);
   };
 
-  // 🔥 TỰ ĐỘNG LƯU NHÁP GIỜ THỰC TẾ VÀO SESSIONSTORAGE KHI CÓ THAY ĐỔI
-  useEffect(() => {
-    if (selectedBooking && selectedBooking._id) {
-      const draftData = {
-        actualStart: actualStartTime,
-        actualEnd: actualEndTime,
-      };
-      sessionStorage.setItem(
-        `billing_draft_${selectedBooking._id}`,
-        JSON.stringify(draftData),
+  const handleUpdateCourtTimesInDB = async (timesToUpdate) => {
+    if (!selectedBooking) return;
+    // Ưu tiên dùng dữ liệu timesToUpdate truyền trực tiếp vào
+    const targetTimes = timesToUpdate || courtTimes;
+
+    try {
+      const invRes = await API.get(`/invoices/booking/${selectedBooking._id}`);
+      if (!invRes.data.success || !invRes.data.data) {
+        throw new Error("Không thể lấy thông tin hóa đơn cho sân này!");
+      }
+      const activeInvoice = invRes.data.data;
+
+      const courtDetails = selectedBooking.allBookingIds.map((bId, index) => {
+        const courtObj = selectedBooking.allCourts?.[index];
+        const courtId = courtObj?._id || courtObj;
+        const t = targetTimes[bId] || {
+          startTime: selectedBooking.startTime || "07:00",
+          endTime: selectedBooking.endTime || "10:00",
+        };
+
+        const startStr = t.startTime || "07:00";
+        const endStr = t.endTime || "10:00";
+        const startParts = startStr.split(":");
+        const endParts = endStr.split(":");
+
+        const startH = parseInt(startParts[0], 10) || 0;
+        const endH = parseInt(endParts[0], 10) || 0;
+        const hours = Math.max(1, endH - startH);
+        const price = calculateCourtFeeByHours(startStr, endStr);
+
+        return {
+          court: courtId,
+          actualStartTime: startStr,
+          actualEndTime: endStr,
+          hoursPlayed: hours,
+          price: price,
+        };
+      });
+
+      const res = await API.put(`/invoices/${activeInvoice._id}`, {
+        courtDetails: courtDetails,
+        items: activeInvoice.items,
+        courtTimes: targetTimes,
+      });
+
+      if (res.data.success) {
+        setCurrentInvoice(res.data.data);
+        showNotification("Đã cập nhật giờ sân và tính lại tiền!");
+      }
+    } catch (error) {
+      console.error(
+        "Chi tiết lỗi từ Server:",
+        error.response?.data || error.message,
+      );
+      showNotification(
+        error.response?.data?.message || "Lỗi lưu giờ sân trên server!",
+        "error",
       );
     }
-  }, [actualStartTime, actualEndTime, selectedBooking]);
+  };
 
-  const handleSetCurrentTime = (type) => {
+  const handleSetCurrentTimeForCourt = (bId, type) => {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, "0");
     const minutes = String(now.getMinutes()).padStart(2, "0");
     const timeString = `${hours}:${minutes}`;
 
-    if (type === "start") {
-      setActualStartTime(timeString);
-    } else {
-      setActualEndTime(timeString);
+    setCourtTimes((prev) => {
+      const current = prev[bId] || { startTime: "07:00", endTime: "10:00" };
+      const updated = {
+        ...prev,
+        [bId]: {
+          ...current,
+          [type === "start" ? "startTime" : "endTime"]: timeString,
+        },
+      };
+      handleUpdateCourtTimesInDB(updated);
+      return updated;
+    });
+  };
+
+  const handleOpenAddCourtModal = async () => {
+    if (!selectedBooking) return;
+    try {
+      const [resCourts, resBookings] = await Promise.all([
+        API.get("/courts"),
+        API.get("/bookings"),
+      ]);
+
+      const courtsData = resCourts.data.data || resCourts.data || [];
+      const bookingsData = resBookings.data.data || resBookings.data || [];
+
+      const bookingDate = new Date(selectedBooking.date)
+        .toISOString()
+        .split("T")[0];
+      const targetStartH = parseInt(
+        selectedBooking.startTime.split(":")[0],
+        10,
+      );
+      const targetEndH = parseInt(selectedBooking.endTime.split(":")[0], 10);
+
+      const bookedCourtIds = new Set();
+      bookingsData.forEach((b) => {
+        if (b.bookingStatus === "cancelled") return;
+        const bDate = new Date(b.date).toISOString().split("T")[0];
+        if (bDate !== bookingDate) return;
+
+        const bStart = parseInt((b.startTime || "00:00").split(":")[0], 10);
+        const bEnd = parseInt((b.endTime || "00:00").split(":")[0], 10);
+
+        if (targetStartH < bEnd && targetEndH > bStart) {
+          const cId = b.court?._id || b.court;
+          bookedCourtIds.add(cId);
+        }
+      });
+
+      const freeCourts = courtsData.filter((c) => !bookedCourtIds.has(c._id));
+      setAvailableCourts(freeCourts);
+      setIsAddCourtModalOpen(true);
+    } catch (err) {
+      console.error("Lỗi tải danh sách sân trống:", err);
+      showNotification("Không thể tải danh sách sân trống!", "error");
+    }
+  };
+
+  const handleConfirmAddExtraCourt = async (courtId) => {
+    try {
+      const res = await API.post("/bookings/add-extra-court", {
+        existingBookingId: selectedBooking._id,
+        newCourtId: courtId,
+      });
+      if (res.data.success) {
+        showNotification(
+          "Đã thêm sân phát sinh và gộp vào hóa đơn thành công!",
+        );
+        setIsAddCourtModalOpen(false);
+        fetchCheckedInBookings();
+        const invRes = await API.get(
+          `/invoices/booking/${selectedBooking._id}`,
+        );
+        if (invRes.data.success) setCurrentInvoice(invRes.data.data);
+      }
+    } catch (err) {
+      console.error("Lỗi thêm sân phát sinh:", err);
+      showNotification(
+        err.response?.data?.message || "Lỗi khi thêm sân phát sinh!",
+        "error",
+      );
     }
   };
 
@@ -164,7 +333,10 @@ export default function BillingManager() {
     }
 
     try {
-      const res = await API.put(`/invoices/${currentInvoice._id}`, { items });
+      const res = await API.put(`/invoices/${currentInvoice._id}`, {
+        items,
+        courtTimes,
+      });
       if (res.data.success) {
         setCurrentInvoice(res.data.data);
       }
@@ -191,7 +363,10 @@ export default function BillingManager() {
       .filter(Boolean);
 
     try {
-      const res = await API.put(`/invoices/${currentInvoice._id}`, { items });
+      const res = await API.put(`/invoices/${currentInvoice._id}`, {
+        items,
+        courtTimes,
+      });
       if (res.data.success) {
         setCurrentInvoice(res.data.data);
       }
@@ -213,7 +388,10 @@ export default function BillingManager() {
     });
 
     try {
-      const res = await API.put(`/invoices/${currentInvoice._id}`, { items });
+      const res = await API.put(`/invoices/${currentInvoice._id}`, {
+        items,
+        courtTimes,
+      });
       if (res.data.success) {
         setCurrentInvoice(res.data.data);
         showNotification("Đã cập nhật trạng thái thanh toán lẻ cho món hàng!");
@@ -224,8 +402,6 @@ export default function BillingManager() {
     }
   };
 
-  // 🔥 THUẬT TOÁN TÍNH TIỀN SÂN THEO ĐÚNG KHUNG GIỜ
-  // 0h - 5h: 60k/h | 6h - 16h: 30k/h | 17h - 23h: 60k/h
   const timeToMinutes = (timeStr) => {
     if (!timeStr) return 0;
     const parts = timeStr.split(":");
@@ -252,11 +428,11 @@ export default function BillingManager() {
 
       let hourlyRate = 30000;
       if (hourOfDay >= 0 && hourOfDay <= 5) {
-        hourlyRate = 60000; // 0h - 5h: 60k
+        hourlyRate = 60000;
       } else if (hourOfDay >= 6 && hourOfDay <= 16) {
-        hourlyRate = 30000; // 6h - 16h: 30k
+        hourlyRate = 30000;
       } else {
-        hourlyRate = 60000; // 17h - 23h: 60k
+        hourlyRate = 60000;
       }
 
       const nextHourMins = Math.min(
@@ -272,10 +448,17 @@ export default function BillingManager() {
     return Math.round(totalFee);
   };
 
-  const totalCourtFee = calculateCourtFeeByHours(
-    actualStartTime,
-    actualEndTime,
-  );
+  const totalCourtFee = React.useMemo(() => {
+    if (!selectedBooking?.allBookingIds) return 0;
+    let sum = 0;
+    selectedBooking.allBookingIds.forEach((bId) => {
+      const t = courtTimes[bId];
+      if (t) {
+        sum += calculateCourtFeeByHours(t.startTime, t.endTime);
+      }
+    });
+    return sum;
+  }, [courtTimes, selectedBooking]);
 
   const depositPaid =
     currentInvoice?.depositPaid ||
@@ -360,7 +543,7 @@ export default function BillingManager() {
   const invoiceItems = currentInvoice ? currentInvoice.items : [];
 
   const handleCheckoutComplete = async (method) => {
-    if (!currentInvoice) return;
+    if (!currentInvoice || !selectedBooking) return;
 
     let cashierName = "Thu ngân ca trực";
     const adminUserStr = localStorage.getItem("adminUser");
@@ -374,6 +557,26 @@ export default function BillingManager() {
     }
 
     try {
+      const courtDetails = selectedBooking.allBookingIds.map((bId, index) => {
+        const courtObj = selectedBooking.allCourts?.[index];
+        const courtId = courtObj?._id || courtObj;
+        const t = courtTimes[bId] || { startTime: "07:00", endTime: "10:00" };
+
+        const startH = parseInt(t.startTime.split(":")[0], 10) || 0;
+        const endH = parseInt(t.endTime.split(":")[0], 10) || 0;
+        const hours = Math.max(1, endH - startH);
+        const price = calculateCourtFeeByHours(t.startTime, t.endTime);
+
+        return {
+          court: courtId,
+          actualStartTime: t.startTime,
+          actualEndTime: t.endTime,
+          hoursPlayed: hours,
+          price: price,
+        };
+      });
+
+      // Đổi lại đường dẫn endpoint thành chuẩn /invoices/{id}
       await API.put(`/invoices/${currentInvoice._id}`, {
         paymentStatus: "paid_full",
         paymentMethod: method,
@@ -381,7 +584,14 @@ export default function BillingManager() {
         depositPaid: depositPaid,
         discountAmount: discountAmount,
         discountCode: appliedVoucher ? appliedVoucher.code : null,
+        courtDetails: courtDetails,
+        courtTimes: courtTimes,
+        items: currentInvoice.items,
       });
+
+      const bookingIdsToComplete = selectedBooking?.allBookingIds || [
+        selectedBooking?._id,
+      ];
 
       const methodNames = {
         cash: "Tiền mặt",
@@ -393,9 +603,10 @@ export default function BillingManager() {
         `Thanh toán thành công (${methodNameText}) và lưu hóa đơn thành công!`,
       );
 
-      // Xóa dữ liệu nháp của sân này khi thanh toán xong
-      if (selectedBooking?._id) {
-        sessionStorage.removeItem(`billing_draft_${selectedBooking._id}`);
+      if (bookingIdsToComplete.length > 0) {
+        setCheckedInBookings((prev) =>
+          prev.filter((b) => !bookingIdsToComplete.includes(b._id)),
+        );
       }
 
       setSelectedBooking(null);
@@ -404,6 +615,7 @@ export default function BillingManager() {
       setAppliedVoucher(null);
       setDiscountAmount(0);
       setIsCheckoutModalOpen(false);
+
       fetchCheckedInBookings();
     } catch (error) {
       console.error("Lỗi thanh toán:", error);
@@ -446,7 +658,7 @@ export default function BillingManager() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 flex-1 items-start">
-        {/* CỘT 1: SÂN ĐANG CHECK-IN */}
+        {/* CỘT 1: SÂN Đang CHECK-IN */}
         <div className="xl:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-xs flex flex-col">
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 dark:border-slate-800">
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
@@ -477,7 +689,11 @@ export default function BillingManager() {
                   >
                     <div className="flex justify-between items-start mb-1.5">
                       <span className="font-bold text-slate-800 dark:text-white text-sm">
-                        {booking.court?.name || "Sân cầu lông"}
+                        {booking.allCourts && booking.allCourts.length > 1
+                          ? booking.allCourts
+                              .map((c) => c?.name || "Sân")
+                              .join(", ")
+                          : booking.court?.name || "Sân cầu lông"}
                       </span>
                       <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50 px-2 py-0.5 rounded-full font-semibold">
                         Đang chơi
@@ -591,7 +807,18 @@ export default function BillingManager() {
                 <div className="text-xs text-slate-600 dark:text-slate-300 mb-3 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center">
                   <div>
                     <p className="font-bold text-slate-800 dark:text-white text-sm">
-                      {selectedBooking.court?.name}
+                      {selectedBooking.allCourts &&
+                      selectedBooking.allCourts.length > 1
+                        ? selectedBooking.allCourts
+                            .map((c) => c?.name || "Sân")
+                            .join(", ")
+                        : selectedBooking.court?.name || "Sân cầu lông"}
+                      {currentInvoice?.courts &&
+                        currentInvoice.courts.length > 1 && (
+                          <span className="text-emerald-600 dark:text-emerald-400 ml-1.5 font-semibold">
+                            (Gộp {currentInvoice.courts.length} sân)
+                          </span>
+                        )}
                     </p>
                     <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5">
                       Khách hàng:{" "}
@@ -601,71 +828,165 @@ export default function BillingManager() {
                       </span>
                     </p>
                   </div>
-                  <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full font-semibold border border-emerald-200 dark:border-emerald-700/50">
+                  <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/50 px-2 py-0.5 rounded-full font-semibold">
                     Đang chơi
                   </span>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-3.5 rounded-xl mb-3 text-xs space-y-3">
-                  <div className="flex justify-between items-center text-slate-500 dark:text-slate-400 pb-2.5 border-b border-slate-200 dark:border-slate-800">
-                    <span>Giờ đặt lịch gốc:</span>
-                    <span className="font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-mono">
-                      {selectedBooking.startTime} - {selectedBooking.endTime}
-                    </span>
-                  </div>
+                <button
+                  onClick={handleOpenAddCourtModal}
+                  className="w-full mb-3 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-600/50 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer text-xs shadow-sm"
+                >
+                  <Plus size={15} /> Lấy Thêm Sân Mới Cho Khách Này
+                </button>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      Giờ bắt đầu (Thực tế):
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="19:00"
-                        value={actualStartTime}
-                        onChange={(e) => setActualStartTime(e.target.value)}
-                        className="w-20 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-emerald-600 dark:text-emerald-400 font-bold text-xs text-center outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition font-mono"
-                      />
-                      <button
-                        onClick={() => handleSetCurrentTime("start")}
-                        title="Lấy giờ hiện tại"
-                        className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center gap-1 transition cursor-pointer text-xs font-medium"
-                      >
-                        <Clock size={13} /> Hiện tại
-                      </button>
+                <div className="space-y-3 mb-3">
+                  {selectedBooking.allBookingIds &&
+                  selectedBooking.allBookingIds.length > 0 ? (
+                    selectedBooking.allBookingIds.map((bId, index) => {
+                      const courtObj = selectedBooking.allCourts?.[index];
+                      const courtName = courtObj?.name || `Sân ${index + 1}`;
+                      const currentTimes = courtTimes[bId] || {
+                        startTime: selectedBooking.startTime || "07:00",
+                        endTime: selectedBooking.endTime || "10:00",
+                      };
+
+                      return (
+                        <div
+                          key={bId}
+                          className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-3.5 rounded-xl text-xs space-y-2.5"
+                        >
+                          <div className="flex justify-between items-center pb-1 border-b border-slate-200 dark:border-slate-700/60">
+                            <span className="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                              {courtName}
+                              {index === 0 ? (
+                                <span className="text-[9px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 px-1.5 py-0.5 rounded font-semibold">
+                                  Sân chính
+                                </span>
+                              ) : (
+                                <span className="text-[9px] bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300 px-1.5 py-0.5 rounded font-semibold">
+                                  Sân phát sinh
+                                </span>
+                              )}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-slate-400 text-[10px]">
+                                Tiền sân:{" "}
+                                {calculateCourtFeeByHours(
+                                  currentTimes.startTime,
+                                  currentTimes.endTime,
+                                ).toLocaleString("vi-VN")}{" "}
+                                đ
+                              </span>
+                              {/* NÚT BẤM LƯU GIỜ TRỰC QUAN */}
+                              <button
+                                onClick={() =>
+                                  handleUpdateCourtTimesInDB(courtTimes)
+                                }
+                                className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] rounded font-semibold transition cursor-pointer"
+                              >
+                                Lưu giờ
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Ô Bắt đầu */}
+                            <div className="flex items-center justify-between bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                              <span className="text-slate-400 text-[11px]">
+                                Bắt đầu:
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={currentTimes.startTime}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setCourtTimes((prev) => {
+                                      const updated = {
+                                        ...prev,
+                                        [bId]: {
+                                          ...currentTimes,
+                                          startTime: val,
+                                        },
+                                      };
+                                      return updated;
+                                    });
+                                  }}
+                                  onBlur={() =>
+                                    handleUpdateCourtTimesInDB(courtTimes)
+                                  }
+                                  className="w-14 text-right bg-transparent font-bold text-emerald-600 dark:text-emerald-400 outline-none font-mono text-xs"
+                                  cursor-pointer
+                                />
+                                <button
+                                  onClick={() =>
+                                    handleSetCurrentTimeForCourt(bId, "start")
+                                  }
+                                  title="Lấy giờ hiện tại"
+                                  className="text-slate-400 hover:text-emerald-500 p-0.5 cursor-pointer"
+                                >
+                                  <Clock size={12} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Ô Kết thúc */}
+                            <div className="flex items-center justify-between bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                              <span className="text-slate-400 text-[11px]">
+                                Kết thúc:
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={currentTimes.endTime}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setCourtTimes((prev) => {
+                                      const updated = {
+                                        ...prev,
+                                        [bId]: {
+                                          ...currentTimes,
+                                          endTime: val,
+                                        },
+                                      };
+                                      return updated;
+                                    });
+                                  }}
+                                  onBlur={() =>
+                                    handleUpdateCourtTimesInDB(courtTimes)
+                                  }
+                                  className="w-14 text-right bg-transparent font-bold text-emerald-600 dark:text-emerald-400 outline-none font-mono text-xs"
+                                />
+                                <button
+                                  onClick={() =>
+                                    handleSetCurrentTimeForCourt(bId, "end")
+                                  }
+                                  title="Lấy giờ hiện tại"
+                                  className="text-slate-400 hover:text-emerald-500 p-0.5 cursor-pointer"
+                                >
+                                  <Clock size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-xs text-slate-400 p-2 text-center">
+                      Đang tải danh sách sân...
                     </div>
-                  </div>
+                  )}
+                </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      Giờ kết thúc (Thực tế):
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="22:00"
-                        value={actualEndTime}
-                        onChange={(e) => setActualEndTime(e.target.value)}
-                        className="w-20 px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-emerald-600 dark:text-emerald-400 font-bold text-xs text-center outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition font-mono"
-                      />
-                      <button
-                        onClick={() => handleSetCurrentTime("end")}
-                        title="Lấy giờ hiện tại"
-                        className="px-2.5 py-1.5 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center gap-1 transition cursor-pointer text-xs font-medium"
-                      >
-                        <Clock size={13} /> Hiện tại
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      Tổng tiền sân:
-                    </span>
-                    <span className="font-bold text-slate-800 dark:text-white text-sm">
-                      {totalCourtFee.toLocaleString("vi-VN")} đ
-                    </span>
-                  </div>
+                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 p-3 rounded-xl mb-3 text-xs flex justify-between items-center text-slate-600 dark:text-slate-300">
+                  <span className="font-semibold text-slate-500 dark:text-slate-400">
+                    Tổng tiền tất cả các sân:
+                  </span>
+                  <span className="font-bold text-slate-800 dark:text-white text-sm">
+                    {totalCourtFee.toLocaleString("vi-VN")} đ
+                  </span>
                 </div>
 
                 <div className="mt-2">
@@ -777,7 +1098,6 @@ export default function BillingManager() {
 
           {selectedBooking && currentInvoice && (
             <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-3 space-y-2 text-xs">
-              {/* NHẬP VOUCHER */}
               <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-1.5 pl-3 rounded-xl border border-slate-200 dark:border-slate-700">
                 <Tag size={15} className="text-emerald-600 shrink-0" />
                 <input
@@ -843,14 +1163,72 @@ export default function BillingManager() {
         </div>
       </div>
 
+      {isAddCourtModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 dark:border-slate-800">
+            <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <Plus size={18} className="text-emerald-500" /> Chọn Sân Phát
+                Sinh Trống
+              </h3>
+              <button
+                onClick={() => setIsAddCourtModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Khung giờ:{" "}
+              <b className="text-slate-700 dark:text-slate-200">
+                {selectedBooking?.startTime} - {selectedBooking?.endTime}
+              </b>{" "}
+              (Ngày: {selectedBooking?.date?.split("T")[0]})
+            </p>
+
+            <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1 mb-4">
+              {availableCourts.length > 0 ? (
+                availableCourts.map((court) => (
+                  <div
+                    key={court._id}
+                    onClick={() => handleConfirmAddExtraCourt(court._id)}
+                    className="p-3 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 rounded-xl flex justify-between items-center cursor-pointer transition-all group"
+                  >
+                    <div>
+                      <p className="font-bold text-slate-800 dark:text-white text-sm group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+                        {court.name}
+                      </p>
+                      <p className="text-xs text-slate-400">{court.type}</p>
+                    </div>
+                    <span className="text-xs px-3 py-1.5 bg-emerald-600 group-hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors">
+                      Chọn sân này
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-slate-400 italic text-xs">
+                  Không có sân nào còn trống trong khung giờ này.
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setIsAddCourtModalOpen(false)}
+              className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-medium transition cursor-pointer"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
+
       <CheckoutModal
         isOpen={isCheckoutModalOpen}
         onClose={() => setIsCheckoutModalOpen(false)}
         onConfirm={handleCheckoutComplete}
         booking={selectedBooking}
         remainingAmount={remainingAmount}
-        actualStartTime={actualStartTime}
-        actualEndTime={actualEndTime}
         invoiceItems={invoiceItems}
         totalCourtFee={totalCourtFee}
         productsTotal={productsTotal}
@@ -858,6 +1236,7 @@ export default function BillingManager() {
         paidItemsAmount={paidItemsAmount}
         discountAmount={discountAmount}
         appliedVoucher={appliedVoucher}
+        courtTimes={courtTimes}
       />
     </div>
   );
