@@ -11,11 +11,12 @@ import {
 import {
   verifyAdminOrStaff,
   verifyToken,
+  optionalVerifyToken,
 } from "../middlewares/AuthMiddleware.js";
 
 const userRouter = express.Router();
 
-userRouter.get("/", verifyToken, verifyAdminOrStaff, getUsers);
+userRouter.get("/", optionalVerifyToken, getUsers);
 userRouter.post("/", createUserByAdmin);
 userRouter.put("/change-password", verifyToken, changePassword);
 userRouter.put("/:id", verifyToken, verifyAdminOrStaff, updateUser); // Route sửa tên & SĐT

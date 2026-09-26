@@ -70,30 +70,45 @@ export default function AdminLayout() {
         console.error("Lỗi phát âm thanh:", err);
       }
 
+      // Xử lý linh hoạt các trường hợp tên khách và tên sân từ backend gửi lên
+      const customerName =
+        data?.customerName ||
+        data?.guestName ||
+        data?.user?.name ||
+        "Khách vãng lai";
+      const courtName =
+        data?.court?.name || data?.courtName || "Sân chưa xác định";
+      const bookingDate = data?.date || data?.bookingDate || "";
+      const startTime = data?.startTime || "";
+      const endTime = data?.endTime || "";
+
       toast.info(
         <div className="cursor-pointer">
-          <p className="font-bold text-sm">🔔 Đơn Đặt Sân Mới!</p>
+          <p className="font-bold text-sm text-blue-600 dark:text-blue-400">
+            🔔 Đơn Đặt Sân Mới!
+          </p>
           <p className="text-xs mt-1">
             Khách:{" "}
-            <span className="font-semibold">
-              {data?.guestName || data?.user?.name || "Khách vãng lai"}
+            <span className="font-semibold text-slate-800 dark:text-white">
+              {customerName}
             </span>
           </p>
-          {data?.court?.name && (
+          <p className="text-xs">
+            Sân:{" "}
+            <span className="font-semibold text-slate-800 dark:text-white">
+              {courtName}
+            </span>
+          </p>
+          {bookingDate && (
             <p className="text-xs">
-              Sân: <span className="font-semibold">{data.court.name}</span>
+              Ngày đặt: <span className="font-semibold">{bookingDate}</span>
             </p>
           )}
-          {data?.date && (
-            <p className="text-xs">
-              Ngày đặt: <span className="font-semibold">{data.date}</span>
-            </p>
-          )}
-          {data?.startTime && data?.endTime && (
+          {startTime && endTime && (
             <p className="text-xs">
               Khung giờ:{" "}
               <span className="font-semibold">
-                {data.startTime} - {data.endTime}
+                {startTime} - {endTime}
               </span>
             </p>
           )}

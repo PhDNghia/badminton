@@ -3,21 +3,111 @@ import BookingModel from "../models/BookingModel.js";
 import UserModel from "../models/UserModel.js"; // Import model User để quản lý tạo tài khoản tự động
 import InvoiceModel from "../models/InvoiceModel.js"; // Nhớ import InvoiceModel
 import bcrypt from "bcryptjs"; // Thêm thư viện mã hóa mật khẩu nếu app bạn đang dùng
+import { io } from "../server.js";
 
 // 1. Tạo lịch đặt mới (Hỗ trợ đặt 1 hoặc nhiều sân cùng lúc)
+// export const createBooking = async (req, res) => {
+//   try {
+//     const {
+//       courts, // Mảng chứa ID các sân, ví dụ: ['court_id_1', 'court_id_2'] (Nếu đặt 1 sân thì vẫn có thể nhận court đơn hoặc mảng)
+//       court, // Hỗ trợ truyền 1 sân đơn
+//       date,
+//       startTime,
+//       endTime,
+//       totalPrice,
+//       depositAmount,
+//       guestName,
+//       guestPhone,
+//       user: requestedUserId,
+//     } = req.body;
+
+//     const listCourts = courts && courts.length > 0 ? courts : [court];
+//     if (!listCourts[0]) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Vui lòng chọn ít nhất một sân!" });
+//     }
+
+//     let userId = null;
+//     let finalGuestName = "";
+//     let finalGuestPhone = "";
+
+//     if (requestedUserId) {
+//       userId = requestedUserId;
+//     } else if (guestPhone && guestPhone.trim() !== "") {
+//       let existingUser = await UserModel.findOne({ phone: guestPhone });
+//       if (!existingUser) {
+//         const salt = await bcrypt.genSalt(10);
+//         const hashedPassword = await bcrypt.hash(guestPhone, salt);
+//         existingUser = await UserModel.create({
+//           name: guestName || "Khách vãng lai",
+//           phone: guestPhone,
+//           password: hashedPassword,
+//           role: "user",
+//         });
+//       }
+//       userId = existingUser._id;
+//       finalGuestName = guestName;
+//       finalGuestPhone = guestPhone;
+//     }
+
+//     // Nếu đặt nhiều sân cùng lúc, tạo groupBookingId chung
+//     const groupBookingId = listCourts.length > 1 ? `GROUP_${Date.now()}` : null;
+//     let createdBookings = [];
+
+//     const pricePerCourt = totalPrice / listCourts.length;
+//     const depositPerCourt = depositAmount / listCourts.length;
+
+//     for (let cId of listCourts) {
+//       const newBooking = new BookingModel({
+//         court: cId,
+//         user: userId,
+//         guestName: finalGuestName,
+//         guestPhone: finalGuestPhone,
+//         date,
+//         startTime,
+//         endTime,
+//         totalPrice: pricePerCourt,
+//         depositAmount: depositPerCourt,
+//         paymentStatus: "pending",
+//         bookingStatus: "pending_deposit",
+//         groupBookingId: groupBookingId,
+//       });
+
+//       await newBooking.save();
+//       const populated = await BookingModel.findById(newBooking._id)
+//         .populate("court", "name type")
+//         .populate("user", "name phone email");
+//       createdBookings.push(populated);
+//     }
+
+//     res.status(201).json({
+//       success: true,
+//       message: `Đặt thành công ${listCourts.length} sân!`,
+//       data: listCourts.length === 1 ? createdBookings[0] : createdBookings,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+// badminton-backend/controllers/BookingController.js
+
 export const createBooking = async (req, res) => {
   try {
     const {
-      courts, // Mảng chứa ID các sân, ví dụ: ['court_id_1', 'court_id_2'] (Nếu đặt 1 sân thì vẫn có thể nhận court đơn hoặc mảng)
-      court, // Hỗ trợ truyền 1 sân đơn
+      courts,
+      court,
       date,
       startTime,
       endTime,
-      totalPrice,
+      totalPrice, // Tổng tiền sau khi đã trừ giảm giá
       depositAmount,
       guestName,
       guestPhone,
       user: requestedUserId,
+      voucherCode, // 🎁 Nhận mã voucher từ client gửi lên
+      discountAmount, // 🎁 Nhận số tiền giảm giá từ client gửi lên
     } = req.body;
 
     const listCourts = courts && courts.length > 0 ? courts : [court];
@@ -50,12 +140,13 @@ export const createBooking = async (req, res) => {
       finalGuestPhone = guestPhone;
     }
 
-    // Nếu đặt nhiều sân cùng lúc, tạo groupBookingId chung
     const groupBookingId = listCourts.length > 1 ? `GROUP_${Date.now()}` : null;
     let createdBookings = [];
 
+    // Chia đều tổng tiền, tiền cọc và tiền giảm giá cho từng sân nếu đặt nhiều sân
     const pricePerCourt = totalPrice / listCourts.length;
     const depositPerCourt = depositAmount / listCourts.length;
+    const discountPerCourt = (discountAmount || 0) / listCourts.length;
 
     for (let cId of listCourts) {
       const newBooking = new BookingModel({
@@ -71,6 +162,8 @@ export const createBooking = async (req, res) => {
         paymentStatus: "pending",
         bookingStatus: "pending_deposit",
         groupBookingId: groupBookingId,
+        voucherCode: voucherCode || "", // 📌 Lưu mã voucher vào booking
+        discountAmount: discountPerCourt, // 📌 Lưu tiền giảm vào booking
       });
 
       await newBooking.save();
@@ -78,6 +171,55 @@ export const createBooking = async (req, res) => {
         .populate("court", "name type")
         .populate("user", "name phone email");
       createdBookings.push(populated);
+    }
+
+    // 💡 Tự động tạo Invoice luôn từ lúc đặt để khi Admin check-in hay thanh toán đã có sẵn thông tin voucher
+    const allBookingIds = createdBookings.map((b) => b._id);
+    let courtDetailsMap = createdBookings.map((b) => {
+      const startH = parseInt(b.startTime?.split(":")[0] || 0, 10);
+      const endH = parseInt(b.endTime?.split(":")[0] || 0, 10);
+      const hours = Math.max(1, endH - startH);
+
+      return {
+        court: b.court._id || b.court,
+        actualStartTime: b.startTime || "",
+        actualEndTime: b.endTime || "",
+        hoursPlayed: hours,
+        price: b.totalPrice || 0,
+      };
+    });
+
+    const safeTotal = Number(totalPrice) || 0;
+    const safeDiscount = Number(discountAmount) || 0;
+    const safeDeposit = Number(depositAmount) || 0;
+
+    const newInvoice = new InvoiceModel({
+      booking: allBookingIds[0],
+      bookings: allBookingIds,
+      court: listCourts[0],
+      courts: listCourts,
+      courtDetails: courtDetailsMap,
+      user: userId,
+      customerName: finalGuestName || "Khách lẻ",
+      phone: finalGuestPhone || "N/A",
+      courtFee: safeTotal + safeDiscount, // Tiền gốc trước giảm
+      depositPaid: safeDeposit,
+      items: [],
+      productsTotal: 0,
+      discountCode: voucherCode || "",
+      discountAmount: safeDiscount,
+      totalAmount: safeTotal,
+      remainingAmount: Math.max(0, safeTotal - safeDeposit),
+      paymentStatus: "pending_deposit",
+    });
+    await newInvoice.save();
+
+    // 🔌 BẮN SỰ KIỆN SOCKET.IO REAL-TIME CHO ADMIN/STAFF
+    if (io) {
+      // Đảm bảo dữ liệu gửi đi có chứa thông tin user và court đã được populate
+      const bookingData = createdBookings[0];
+      io.emit("NEW_BOOKING_ALERT", bookingData);
+      console.log("Đã phát sự kiện socket NEW_BOOKING_ALERT thành công!");
     }
 
     res.status(201).json({

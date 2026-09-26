@@ -30,6 +30,9 @@ const bookingSchema = new mongoose.Schema(
     totalPrice: { type: Number, required: true },
     depositAmount: { type: Number, required: true },
 
+    voucherCode: { type: String, default: "" },
+    discountAmount: { type: Number, default: 0 },
+
     groupBookingId: { type: String, default: null },
 
     paymentStatus: {
@@ -54,6 +57,11 @@ const bookingSchema = new mongoose.Schema(
         "cancelled",
       ],
       default: "pending_deposit",
+    },
+    createdAt: { type: Date, default: Date.now },
+    expiresAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 5 * 60 * 1000), // Tự động cộng 5 phút
     },
   },
   { timestamps: true },

@@ -102,6 +102,64 @@ export default function BillingManager() {
     }
   };
 
+  // const handleSelectBooking = async (booking) => {
+  //   setSelectedBooking(booking);
+  //   setVoucherCode("");
+  //   setAppliedVoucher(null);
+  //   setDiscountAmount(0);
+
+  //   const initialTimes = {};
+  //   if (booking.allBookingsData && booking.allBookingsData.length > 0) {
+  //     booking.allBookingsData.forEach((subB) => {
+  //       initialTimes[subB._id] = {
+  //         startTime: subB.startTime || "07:00",
+  //         endTime: subB.endTime || "10:00",
+  //       };
+  //     });
+  //   } else if (booking.allBookingIds) {
+  //     booking.allBookingIds.forEach((bId) => {
+  //       initialTimes[bId] = {
+  //         startTime: booking.startTime || "07:00",
+  //         endTime: booking.endTime || "10:00",
+  //       };
+  //     });
+  //   }
+
+  //   try {
+  //     const res = await API.get(`/invoices/booking/${booking._id}`);
+  //     if (res.data.success) {
+  //       const inv = res.data.data;
+  //       setCurrentInvoice(inv);
+
+  //       // Khôi phục giờ từ courtTimes hoặc courtDetails đã lưu trong DB
+  //       if (inv.courtTimes && Object.keys(inv.courtTimes).length > 0) {
+  //         Object.assign(initialTimes, inv.courtTimes);
+  //       } else if (inv.courtDetails && inv.courtDetails.length > 0) {
+  //         booking.allBookingIds.forEach((bId, idx) => {
+  //           const detail =
+  //             inv.courtDetails[idx] ||
+  //             inv.courtDetails.find(
+  //               (d) =>
+  //                 (d.court?._id || d.court) ===
+  //                 (booking.allCourts?.[idx]?._id || booking.allCourts?.[idx]),
+  //             );
+  //           if (detail && detail.actualStartTime && detail.actualEndTime) {
+  //             initialTimes[bId] = {
+  //               startTime: detail.actualStartTime,
+  //               endTime: detail.actualEndTime,
+  //             };
+  //           }
+  //         });
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Lỗi lấy invoice:", error);
+  //     showNotification("Không thể tải thông tin hóa đơn của sân này!", "error");
+  //   }
+
+  //   setCourtTimes(initialTimes);
+  // };
+
   const handleSelectBooking = async (booking) => {
     setSelectedBooking(booking);
     setVoucherCode("");
@@ -130,6 +188,21 @@ export default function BillingManager() {
       if (res.data.success) {
         const inv = res.data.data;
         setCurrentInvoice(inv);
+
+        // --- BỔ SUNG ĐOẠN NÀY ĐỂ ĐỒNG BỘ MÃ GIẢM GIÁ TỪ HÓA ĐƠN/BOOKING ---
+        if (inv.discountCode || inv.voucherCode) {
+          const code = inv.discountCode || inv.voucherCode;
+          const amount = inv.discountAmount || 0;
+
+          setVoucherCode(code);
+          setAppliedVoucher({
+            code: code,
+            discountType: inv.discountType || "fixed",
+            discountValue: amount,
+          });
+          setDiscountAmount(amount);
+        }
+        // -------------------------------------------------------------
 
         // Khôi phục giờ từ courtTimes hoặc courtDetails đã lưu trong DB
         if (inv.courtTimes && Object.keys(inv.courtTimes).length > 0) {

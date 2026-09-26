@@ -13,7 +13,7 @@ import {
 
 const courtRouter = express.Router();
 
-courtRouter.get("/", verifyToken, verifyAdminOrStaff, getCourts);
+courtRouter.get("/", getCourts);
 courtRouter.post("/", verifyToken, verifyAdminOrStaff, createCourt);
 courtRouter.put("/:id", verifyToken, verifyAdminOrStaff, updateCourt);
 courtRouter.delete("/:id", verifyToken, verifyAdminOrStaff, deleteCourt);

@@ -31,7 +31,9 @@ bookingRouter.put(
   verifyAdminOrStaff,
   checkInBooking,
 );
-bookingRouter.get("/", verifyToken, verifyAdminOrStaff, getAllBookings);
+
+bookingRouter.get("/", optionalVerifyToken, getAllBookings);
+
 bookingRouter.delete(
   "/:bookingId",
   verifyToken,
